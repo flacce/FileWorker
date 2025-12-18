@@ -100,17 +100,17 @@ onBeforeUnmount(() => {
   <div class="flex flex-col items-center">
     <div class="text-area flex flex-col mt-4">
       <div class="header p-2 flex flex-row items-center">
-        <input class="filename-input monospace" type="text" v-model="filename" :placeholder="$t('common.filename')" />
+        <input class="filename-input monospace" type="text" v-model="filename" placeholder="文件名" />
         <button @click="refreshRandomFileName" class="i-mdi-refresh ml-1 w-5 h-5"></button>
         <div :class="modified ? 'unsave-attention' : 'save-attention'"></div>
       </div>
       <div ref="editorElement"></div>
       <div class="footer p-2">
         <select class="public-select" v-model="clipStore.visibility">
-          <option value="private">{{ $t('common.private') }}</option>
-          <option value="public">{{ $t('common.public') }}</option>
+          <option value="private">私有</option>
+          <option value="public">公开</option>
         </select>
-        <button class="save-btn" @click="onSaveBtnClick">{{ $t('common.save') }}</button>
+        <button class="save-btn" @click="onSaveBtnClick">保存</button>
       </div>
     </div>
   </div>

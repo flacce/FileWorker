@@ -118,8 +118,8 @@ onUnmounted(() => {
       </div>
       <div class="footer p-2">
         <select class="public-select" v-model="fileStore.visibility">
-          <option value="private">{{ $t('common.private') }}</option>
-          <option value="public">{{ $t('common.public') }}</option>
+          <option value="private">私有</option>
+          <option value="public">公开</option>
         </select>
       </div>
     </div>

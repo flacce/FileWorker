@@ -1,22 +1,7 @@
 <script setup lang="ts">
-import { useI18n } from "vue-i18n";
-import useI18nStore from "../store/i18n";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
-const i18nStore = useI18nStore();
-
-// 更新语言设置
-const updateLocale = (locale: string) => {
-  i18nStore.setLocale(locale);
-};
-
-const { locale } = useI18n();
-
-// 初始化语言
-if (i18nStore.locale !== "") {
-  locale.value = i18nStore.locale;
-}
 
 // 跳转到剪贴板页面
 const onClipAreaClick = () => {
@@ -33,20 +18,16 @@ const onUploadClick = () => {
   <div class="flex flex-col items-center">
     <div class="pannel file-pannel">
       <div class="text-2xl flex flex-row items-center">
-        <router-link to="/filemanage" class="link-hint">{{ $t("index.file_channel_title") }}</router-link>
+        <router-link to="/filemanage" class="link-hint">文件</router-link>
       </div>
       <div class="upload-area" @click="onUploadClick"></div>
     </div>
     <div class="pannel clip-pannel">
       <div class="text-2xl flex flex-row items-center">
-        <router-link to="/filemanage" class="link-hint">{{ $t("index.clip_channel_title") }}</router-link>
+        <router-link to="/filemanage" class="link-hint">剪贴板</router-link>
       </div>
       <div class="clip-area" @click="onClipAreaClick"></div>
     </div>
-    <!-- <div class="pannel tips-pannel">{{ $t("index.tips_content") }}</div> -->
-    <select v-model="$i18n.locale" class="locale-changer" @change="updateLocale($i18n.locale)">
-      <option v-for="locale in $i18n.availableLocales" :key="`locale-${locale}`" :value="locale">{{ locale }}</option>
-    </select>
   </div>
 </template>
 

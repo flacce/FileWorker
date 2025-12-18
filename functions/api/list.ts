@@ -16,8 +16,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const command = new ListObjectsV2Command({
         Bucket: BUCKET!,
         MaxKeys: maxKeys ? parseInt(maxKeys) : undefined,
-        Prefix: prefix,
-        ContinuationToken: continuationToken
+        Prefix: prefix ?? undefined,
+        ContinuationToken: continuationToken ?? undefined
     });
     // 执行 S3 列表命令
     let response;

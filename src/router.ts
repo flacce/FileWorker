@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 import Cookies from 'js-cookie'
-import i18n from "./i18n";
+
 
 import IndexPage from "./pages/IndexPage.vue";
 import ClipPage from "./pages/ClipPage.vue";
@@ -8,14 +8,12 @@ import FilePage from "./pages/FilePage.vue";
 import LoginPage from "./pages/LoginPage.vue";
 import FileManagePage from "./pages/FileManagePage.vue";
 
-const $t = i18n.global.t;
-
 const routes = [
     {
         path: "/",
         name: "index",
         meta: {
-            title: $t("page_title.index"),
+            title: "首页",
         },
         component: IndexPage,
     },
@@ -23,7 +21,7 @@ const routes = [
         path: "/clip",
         name: "clip",
         meta: {
-            title: $t("page_title.clip"),
+            title: "剪贴板",
         },
         component: ClipPage,
     },
@@ -31,7 +29,7 @@ const routes = [
         path: "/file",
         name: "file",
         meta: {
-            title: $t("page_title.file"),
+            title: "文件上传",
         },
         component: FilePage,
     },
@@ -39,7 +37,7 @@ const routes = [
         path: "/filemanage",
         name: "filemanage",
         meta: {
-            title: $t("page_title.filemanage"),
+            title: "文件管理",
         },
         component: FileManagePage,
     },
@@ -47,7 +45,7 @@ const routes = [
         path: "/login",
         name: "login",
         meta: {
-            title: $t("page_title.login"),
+            title: "登录",
         },
         component: LoginPage,
     },
