@@ -16,7 +16,7 @@ const editorElement = useTemplateRef<HTMLDivElement>("editorElement");
 let editor: EditorView;
 
 // 初始化 EditorState
-let startState = EditorState.create({
+const startState = EditorState.create({
   doc: "",
   extensions: [
     minimalSetup,
@@ -35,21 +35,21 @@ let startState = EditorState.create({
 })
 
 // 文件名处理
-let filename = ref(getRandomFilename());
-let refreshRandomFileName = () => {
+const filename = ref(getRandomFilename());
+const refreshRandomFileName = () => {
   filename.value = getRandomFilename();
 }
 
 const clipStore = useClipStore();
 
 // 保存逻辑
-let onSaveBtnClick = async () => {
+const onSaveBtnClick = async () => {
   await PutFile(filename.value, code.value, clipStore.visibility, "text");
   modified.value = false;
 }
 
 // 快捷键处理 (Ctrl+S / Command+S)
-let saveContentKeydown = (e: KeyboardEvent) => {
+const saveContentKeydown = (e: KeyboardEvent) => {
   if ((e.ctrlKey && e.key === "s") || (e.metaKey && e.key === "s")) {
     e.preventDefault();
     onSaveBtnClick();
@@ -57,7 +57,7 @@ let saveContentKeydown = (e: KeyboardEvent) => {
 }
 
 // 粘贴文件处理
-let onPasteFile = async (e: ClipboardEvent) => {
+const onPasteFile = async (e: ClipboardEvent) => {
   if (!e.clipboardData?.files.length) {
     return;
   }

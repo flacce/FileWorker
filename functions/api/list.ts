@@ -19,11 +19,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         Prefix: prefix,
         ContinuationToken: continuationToken
     });
+    // 执行 S3 列表命令
     let response;
     try {
         response = await s3.send(command);
-    } catch (e) {
-        return new Response("Not found", { status: 404 });
+    } catch (e: any) {
+        return new Response(JSON.stringify({ error: e.message || "获取文件列表失败" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" }
+        });
     }
-    return new Response(JSON.stringify(response), { status: 200 });
+    return new Response(JSON.stringify(response), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+    });
 }

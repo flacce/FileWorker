@@ -19,7 +19,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     let response: GetObjectCommandOutput;
     try {
         response = await s3.send(command);
-    } catch (e) {
+    } catch {
         return new Response("未找到文件", { status: 404 });
     }
     const headers = new Headers();

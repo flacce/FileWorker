@@ -10,7 +10,7 @@ const fileStore = useFileStore();
 const fileUploadInput = useTemplateRef<HTMLInputElement>("fileUploadInput");
 const fileUploadArea = useTemplateRef<HTMLDivElement>("fileUploadArea");
 
-let requestUploadFile = () => {
+const requestUploadFile = () => {
   fileUploadInput.value?.click();
 }
 
@@ -21,7 +21,7 @@ interface UploadedFile {
   done: boolean;
 }
 
-let uploadedFiles: Ref<UploadedFile[]> = ref([]);
+const uploadedFiles: Ref<UploadedFile[]> = ref([]);
 
 const uploadSingle = async (index: number, filename: string, file: File) => {
   await PutFile(filename, file, fileStore.visibility, "file");

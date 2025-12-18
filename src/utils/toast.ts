@@ -2,7 +2,7 @@ import 'toastify-js/src/toastify.css'
 import Toast from 'toastify-js'
 
 export function toast(message: string, type = 'info') {
-  const themes: { [key: string]: any } = {
+  const themes: Record<string, { background: string; text: string }> = {
     info: {
       background: '#e9e9eb',
       text: '#909399'

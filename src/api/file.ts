@@ -12,7 +12,7 @@ const PutFile = async (filename: string, file: File | string, visibility: string
 
 const PatchFile = async (filename: string, visibility?: string) => {
     const url = `/${filename}`;
-    const headers: { [key: string]: any } = {};
+    const headers: { [key: string]: string } = {};
     if (visibility) {
         headers['x-store-visibility'] = visibility;
     }

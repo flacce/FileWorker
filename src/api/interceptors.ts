@@ -8,10 +8,11 @@ const initInterceptors = () => {
             return response;
         },
         async (error: AxiosError) => {
-            toast("Error", "error");
+            toast("请求出错", "error");
             if (error.response?.status === 401) {
                 await router.push('/login');
             }
+            return Promise.reject(error);
         });
 }
 

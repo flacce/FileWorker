@@ -4,17 +4,25 @@ import { formatBytes } from '@/utils/utils';
 import { DeleteFile, ListFiles } from '@/api';
 import type { _Object } from '@aws-sdk/client-s3';
 
-let uploadedFiles: Ref<_Object[]> = ref([]);
+// 上传的文件列表
+const uploadedFiles: Ref<_Object[]> = ref([]);
 
+// 解码文件名
 function decodeKey(key: string) {
     return decodeURIComponent(key)
 }
 
+// 刷新文件列表
 const refreshFiles = async () => {
-    const res = await ListFiles();
-    if (res.hasOwnProperty('Contents') && res.Contents) {
-        uploadedFiles.value = res.Contents;
-    } else {
+    try {
+        const res = await ListFiles();
+        if (res && 'Contents' in res && res.Contents) {
+            uploadedFiles.value = res.Contents;
+        } else {
+            uploadedFiles.value = [];
+        }
+    } catch (error) {
+        console.error("刷新文件列表失败:", error);
         uploadedFiles.value = [];
     }
 };
@@ -23,6 +31,7 @@ onBeforeMount(async () => {
     await refreshFiles();
 });
 
+// 删除文件
 const onDeleteFileClick = async (key?: string) => {
     if (!key) {
         return;

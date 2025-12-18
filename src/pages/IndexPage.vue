@@ -7,7 +7,7 @@ const router = useRouter();
 const i18nStore = useI18nStore();
 
 // 更新语言设置
-let updateLocale = (locale: string) => {
+const updateLocale = (locale: string) => {
   i18nStore.setLocale(locale);
 };
 
@@ -19,12 +19,12 @@ if (i18nStore.locale !== "") {
 }
 
 // 跳转到剪贴板页面
-let onClipAreaClick = () => {
+const onClipAreaClick = () => {
   router.push("/clip");
 };
 
 // 跳转到文件上传页面
-let onUploadClick = () => {
+const onUploadClick = () => {
   router.push("/file");
 };
 </script>

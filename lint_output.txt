@@ -1,0 +1,96 @@
+
+> paste-worker@0.0.0 lint D:\xxxxx\java\FileWorker
+> eslint . --fix
+
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-2CDPOr\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-48YvPe\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-7H1Dfq\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-CShsRH\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-JNPao2\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-Jner6R\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-NhuClN\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-O6n6fw\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-O7BWDx\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-OTzCLB\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-YbKPHM\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-cCmVBJ\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-dvmYyj\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-nnxkRE\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-q2OgIP\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-rkWraX\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-sR1wlZ\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-wB97cB\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\.wrangler\tmp\bundle-zxeRUZ\middleware-insertion-facade.js
+  1:25  error  'OTHER_EXPORTS' is defined but never used                    @typescript-eslint/no-unused-vars
+  6:11  error  'MIDDLEWARE_TEST_INJECT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\functions\[filename].ts
+  22:14  error  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\functions\api\list.ts
+  25:14  error  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\xxxxx\java\FileWorker\src\api\file.ts
+  15:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\xxxxx\java\FileWorker\src\utils\toast.ts
+  5:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 42 problems (42 errors, 0 warnings)
+
+ ELIFECYCLE  Command failed with exit code 1.
