@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, type Ref } from 'vue';
+import { onMounted, onUnmounted, ref, useTemplateRef, type Ref } from 'vue';
 import useFileStore from '@/store/file';
 import { formatBytes } from '@/utils/utils';
 import { PutFile } from '@/api';
 
 const fileStore = useFileStore();
 
-let fileUploadInput = ref();
+// 模板引用
+const fileUploadInput = useTemplateRef<HTMLInputElement>("fileUploadInput");
+const fileUploadArea = useTemplateRef<HTMLDivElement>("fileUploadArea");
 
 let requestUploadFile = () => {
-  fileUploadInput.value.click();
+  fileUploadInput.value?.click();
 }
 
 interface UploadedFile {
@@ -26,39 +28,39 @@ const uploadSingle = async (index: number, filename: string, file: File) => {
   uploadedFiles.value[index - 1].done = true;
 }
 
-onMounted(() => {
-  fileUploadInput.value.addEventListener('change', async (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    const { files } = target;
-    if (files && files.length > 0) {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const index = uploadedFiles.value.push({
-          name: file.name,
-          size: file.size,
-          visibility: fileStore.visibility,
-          done: false
-        });
-        try {
-          uploadSingle(index, file.name, file);
-        } catch (error) {
-          console.error(error);
-        }
-      }
-    }
-  });
-});
+const onFileChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const { files } = target;
+  if (!files) return;
 
-let fileUploadArea = ref();
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const index = uploadedFiles.value.push({
+      name: file.name,
+      size: file.size,
+      visibility: fileStore.visibility,
+      done: false
+    });
+    try {
+      uploadSingle(index, file.name, file);
+    } catch (error) {
+      console.error("文件上传失败:", error);
+    }
+  }
+}
 
 const onDragEvent = async (event: DragEvent) => {
   event.preventDefault();
   event.stopPropagation();
+
+  if (!fileUploadArea.value) return;
+
   if (event.type === 'dragover') {
     fileUploadArea.value.style.border = '2px dashed #000';
   } else {
     fileUploadArea.value.style.border = '2px dashed #e5e7eb';
   }
+
   if (event.type === 'drop') {
     const files = event.dataTransfer?.files;
     if (files && files.length > 0) {
@@ -73,23 +75,37 @@ const onDragEvent = async (event: DragEvent) => {
         try {
           uploadSingle(index, file.name, file);
         } catch (error) {
-          console.error(error);
+          console.error("拖拽上传失败:", error);
         }
       }
     }
   }
 }
+
 onMounted(() => {
-  fileUploadArea.value.addEventListener('dragenter', onDragEvent);
-  fileUploadArea.value.addEventListener('dragover', onDragEvent);
-  fileUploadArea.value.addEventListener('dragleave', onDragEvent);
-  fileUploadArea.value.addEventListener('drop', onDragEvent);
+  // 绑定选择文件事件
+  fileUploadInput.value?.addEventListener('change', onFileChange);
+
+  // 绑定拖拽事件
+  const area = fileUploadArea.value;
+  if (area) {
+    area.addEventListener('dragenter', onDragEvent);
+    area.addEventListener('dragover', onDragEvent);
+    area.addEventListener('dragleave', onDragEvent);
+    area.addEventListener('drop', onDragEvent);
+  }
 });
+
 onUnmounted(() => {
-  fileUploadArea.value.removeEventListener('dragenter', onDragEvent);
-  fileUploadArea.value.removeEventListener('dragover', onDragEvent);
-  fileUploadArea.value.removeEventListener('dragleave', onDragEvent);
-  fileUploadArea.value.removeEventListener('drop', onDragEvent);
+  fileUploadInput.value?.removeEventListener('change', onFileChange);
+
+  const area = fileUploadArea.value;
+  if (area) {
+    area.removeEventListener('dragenter', onDragEvent);
+    area.removeEventListener('dragover', onDragEvent);
+    area.removeEventListener('dragleave', onDragEvent);
+    area.removeEventListener('drop', onDragEvent);
+  }
 });
 
 </script>

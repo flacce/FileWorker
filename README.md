@@ -13,9 +13,11 @@ FileWorker 是一个轻量级的文件管理和在线剪贴板，基于 Cloudfla
 
    Connect to Git -> 选择 Fork 的仓库 ->
 
-   设置 `Build command`: `npm run build`
+   设置 `Build command`: `pnpm run build`
 
    设置 `Build output directory`: `dist`
+
+   设置环境变量 `NODE_VERSION`: `22` (建议使用最新 LTS 或更高版本)
 
    点击 `Save and Deploy`
 

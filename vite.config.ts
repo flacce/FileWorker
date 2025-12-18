@@ -10,6 +10,9 @@ export default defineConfig({
     vue(),
     UnoCSS(),
   ],
+  build: {
+    cssMinify: 'esbuild',
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

@@ -9,9 +9,14 @@ const router = useRouter();
 const { t: $t } = useI18n();
 
 const password = ref('');
+
+// 处理登录按钮点击
 const onSubmitBtnClick = () => {
+    // 设置密码 Cookie
     Cookies.set('PASSWORD', password.value);
     toast($t("login.setting_success"), 'success');
+    
+    // 延迟跳转
     setTimeout(() => {
         if (window.history.state.back) {
             router.back();

@@ -4,21 +4,26 @@ import useI18nStore from "../store/i18n";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
-
 const i18nStore = useI18nStore();
+
+// 更新语言设置
 let updateLocale = (locale: string) => {
   i18nStore.setLocale(locale);
 };
 
 const { locale } = useI18n();
+
+// 初始化语言
 if (i18nStore.locale !== "") {
   locale.value = i18nStore.locale;
 }
 
+// 跳转到剪贴板页面
 let onClipAreaClick = () => {
   router.push("/clip");
 };
 
+// 跳转到文件上传页面
 let onUploadClick = () => {
   router.push("/file");
 };

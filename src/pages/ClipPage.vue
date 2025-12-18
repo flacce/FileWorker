@@ -3,17 +3,19 @@ import { minimalSetup } from "codemirror"
 import { EditorState } from "@codemirror/state"
 import { EditorView, lineNumbers, highlightSpecialChars, drawSelection, dropCursor } from "@codemirror/view"
 
-import { onMounted, onBeforeUnmount, ref } from "vue";
+import { onMounted, onBeforeUnmount, ref, useTemplateRef } from "vue";
 import useClipStore from "@/store/clip";
 
 import { PutFile } from "@/api";
 import { getRandomFilename } from "@/utils/utils";
 
+// 响应式变量
 const code = ref("");
 const modified = ref(false);
-const editorElement = ref();
+const editorElement = useTemplateRef<HTMLDivElement>("editorElement");
 let editor: EditorView;
 
+// 初始化 EditorState
 let startState = EditorState.create({
   doc: "",
   extensions: [
@@ -21,7 +23,7 @@ let startState = EditorState.create({
     lineNumbers(),
     highlightSpecialChars(),
     drawSelection(),
-    // 文件拖动
+    // 文件拖动支持
     dropCursor(),
     EditorView.updateListener.of((update) => {
       code.value = update.state.doc.toString();
@@ -32,31 +34,21 @@ let startState = EditorState.create({
   ]
 })
 
-onMounted(() => {
-  editor = new EditorView({
-    state: startState,
-    parent: editorElement.value,
-  })
-  editor.requestMeasure({
-    read: () => {
-      editor.focus();
-    }
-  })
-})
-
+// 文件名处理
 let filename = ref(getRandomFilename());
-
 let refreshRandomFileName = () => {
   filename.value = getRandomFilename();
 }
 
 const clipStore = useClipStore();
 
+// 保存逻辑
 let onSaveBtnClick = async () => {
   await PutFile(filename.value, code.value, clipStore.visibility, "text");
   modified.value = false;
 }
 
+// 快捷键处理 (Ctrl+S / Command+S)
 let saveContentKeydown = (e: KeyboardEvent) => {
   if ((e.ctrlKey && e.key === "s") || (e.metaKey && e.key === "s")) {
     e.preventDefault();
@@ -64,12 +56,12 @@ let saveContentKeydown = (e: KeyboardEvent) => {
   }
 }
 
+// 粘贴文件处理
 let onPasteFile = async (e: ClipboardEvent) => {
   if (!e.clipboardData?.files.length) {
     return;
   }
   const file = e.clipboardData.files[0];
-  console.log(file);
   const text = await file.text();
   const cursor = editor.state.selection.main.head;
   editor.dispatch({
@@ -77,13 +69,27 @@ let onPasteFile = async (e: ClipboardEvent) => {
   });
 }
 
-
 onMounted(() => {
+  // 创建编辑器实例
+  if (editorElement.value) {
+    editor = new EditorView({
+      state: startState,
+      parent: editorElement.value,
+    })
+    editor.requestMeasure({
+      read: () => {
+        editor.focus();
+      }
+    })
+  }
+
+  // 注册全局事件
   window.addEventListener("keydown", saveContentKeydown);
   document.addEventListener("paste", onPasteFile);
 })
 
 onBeforeUnmount(() => {
+  // 销毁时移除事件
   window.removeEventListener("keydown", saveContentKeydown);
   document.removeEventListener("paste", onPasteFile);
 })
