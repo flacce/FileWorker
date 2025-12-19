@@ -15,7 +15,7 @@ importers:
         specifier: ^3.954.0
         version: 3.954.0(@aws-sdk/client-s3@3.954.0)
       '@aws-sdk/s3-request-presigner':
-        specifier: ^3.714.0
+        specifier: ^3.954.0
         version: 3.954.0
       '@codemirror/basic-setup':
         specifier: ^0.20.0
@@ -38,6 +38,9 @@ importers:
       '@xmldom/xmldom':
         specifier: ^0.8.11
         version: 0.8.11
+      aws4fetch:
+        specifier: ^1.0.20
+        version: 1.0.20
       axios:
         specifier: ^1.7.9
         version: 1.13.2
@@ -47,6 +50,9 @@ importers:
       cookie:
         specifier: ^0.6.0
         version: 0.6.0
+      fast-xml-parser:
+        specifier: ^5.3.3
+        version: 5.3.3
       js-cookie:
         specifier: ^3.0.5
         version: 3.0.5
@@ -1675,6 +1681,9 @@ packages:
   asynckit@0.4.0:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
 
+  aws4fetch@1.0.20:
+    resolution: {integrity: sha512-/djoAN709iY65ETD6LKCtyyEI04XIBP5xVvfmNxsEP0uJB5tyaGBztSryRr4HqMStr9R06PisQE7m9zDTXKu6g==}
+
   axios@1.13.2:
     resolution: {integrity: sha512-VPk9ebNqPcy5lRGuSlKx752IlDatOjT9paPlm8A7yOuW2Fbvp4X3JznJtT4f0GzGLLiWE9W8onz51SqLYwzGaA==}
 
@@ -1973,6 +1982,10 @@ packages:
 
   fast-xml-parser@5.2.5:
     resolution: {integrity: sha512-pfX9uG9Ki0yekDHx2SiuRIyFdyAr1kMIMitPvb0YBo8SUfKvia7w7FIyd/l6av85pFYRhZscS75MwMnbvY+hcQ==}
+    hasBin: true
+
+  fast-xml-parser@5.3.3:
+    resolution: {integrity: sha512-2O3dkPAAC6JavuMm8+4+pgTk+5hoAs+CjZ+sWcQLkX9+/tHRuTkQh/Oaifr8qDmZ8iEHb771Ea6G8CdwkrgvYA==}
     hasBin: true
 
   fastq@1.19.1:
@@ -4786,6 +4799,8 @@ snapshots:
 
   asynckit@0.4.0: {}
 
+  aws4fetch@1.0.20: {}
+
   axios@1.13.2:
     dependencies:
       follow-redirects: 1.15.11
@@ -5145,6 +5160,10 @@ snapshots:
   fast-levenshtein@2.0.6: {}
 
   fast-xml-parser@5.2.5:
+    dependencies:
+      strnum: 2.1.2
+
+  fast-xml-parser@5.3.3:
     dependencies:
       strnum: 2.1.2
 

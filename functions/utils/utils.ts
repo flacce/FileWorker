@@ -63,8 +63,6 @@ const isEqual = (a: string, b: string) => {
     const encodedA = encoder.encode(a);
     const encodedB = encoder.encode(b);
     if (encodedA.byteLength !== encodedB.byteLength) {
-        // Strings must be the same length in order to compare
-        // with crypto.subtle.timingSafeEqual
         return false;
     }
     let result = 0;
