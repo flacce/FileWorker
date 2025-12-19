@@ -67,7 +67,11 @@ const isEqual = (a: string, b: string) => {
         // with crypto.subtle.timingSafeEqual
         return false;
     }
-    return crypto.subtle.timingSafeEqual(encodedA, encodedB);
+    let result = 0;
+    for (let i = 0; i < encodedA.byteLength; i++) {
+        result |= encodedA[i] ^ encodedB[i];
+    }
+    return result === 0;
 }
 
 const auth = (env: Env, request: Request) => {
