@@ -25,7 +25,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         response = await s3.send(command);
     } catch (e) {
         const error = e as Error;
-        return new Response(JSON.stringify({ error: error.message || "获取文件列表失败" }), {
+        return new Response(JSON.stringify({
+            error: error.message || "获取文件列表失败",
+            name: error.name,
+            stack: error.stack
+        }), {
             status: 500,
             headers: { "Content-Type": "application/json" }
         });
