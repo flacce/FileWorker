@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241218.0",
-    "@iconify-json/mdi": "^1.2.1",
+    "@iconify-json/mdi": "^1.2.3",
     "@rushstack/eslint-patch": "^1.10.4",
     "@tsconfig/node22": "^22.0.0",
     "@types/codemirror": "^5.60.15",

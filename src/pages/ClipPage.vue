@@ -31,6 +31,10 @@ const startState = EditorState.create({
         modified.value = true;
       }
     }),
+    EditorView.theme({
+        "&": { height: "100%", fontSize: "14px" },
+        ".cm-scroller": { fontFamily: "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace" }
+    })
   ]
 })
 
@@ -76,11 +80,6 @@ onMounted(() => {
       state: startState,
       parent: editorElement.value,
     })
-    editor.requestMeasure({
-      read: () => {
-        editor.focus();
-      }
-    })
   }
 
   // 注册全局事件
@@ -97,106 +96,90 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex flex-col items-center">
-    <div class="text-area flex flex-col mt-4">
-      <div class="header p-2 flex flex-row items-center">
-        <input class="filename-input monospace" type="text" v-model="filename" placeholder="文件名" />
-        <button @click="refreshRandomFileName" class="i-mdi-refresh ml-1 w-5 h-5"></button>
-        <div :class="modified ? 'unsave-attention' : 'save-attention'"></div>
+  <div class="flex flex-col items-center justify-center pt-6">
+    <div class="glass-card w-full max-w-4xl p-6 shadow-xl">
+      
+      <!-- 头部工具栏 -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+           <div class="relative w-full sm:w-64">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div class="i-mdi-file-document-edit-outline text-gray-400"></div>
+              </div>
+              <input 
+                class="w-full pl-10 pr-3 py-2 bg-white/50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-mono text-sm" 
+                type="text" 
+                v-model="filename" 
+                placeholder="输入文件名..." 
+              />
+           </div>
+           <button 
+             @click="refreshRandomFileName" 
+             class="p-2 rounded-lg hover:bg-white/50 text-gray-600 transition-colors"
+             title="随机文件名"
+           >
+             <div class="i-mdi-refresh w-5 h-5"></div>
+           </button>
+           <div v-if="modified" class="text-amber-500 text-xs flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
+             <div class="i-mdi-circle-medium"></div> 未保存
+           </div>
+           <div v-else class="text-green-500 text-xs flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full border border-green-100">
+             <div class="i-mdi-check-circle"></div> 已保存
+           </div>
+        </div>
+
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+           <select 
+             class="px-3 py-2 bg-white/50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+             v-model="clipStore.visibility"
+           >
+             <option value="private">🔒 私有</option>
+             <option value="public">🌍 公开</option>
+           </select>
+           
+           <button 
+             class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg shadow-blue-500/30 transition-all active:scale-95"
+             @click="onSaveBtnClick"
+           >
+             <div class="i-mdi-content-save-outline"></div>
+             <span>保存</span>
+           </button>
+        </div>
       </div>
-      <div ref="editorElement"></div>
-      <div class="footer p-2">
-        <select class="public-select" v-model="clipStore.visibility">
-          <option value="private">私有</option>
-          <option value="public">公开</option>
-        </select>
-        <button class="save-btn" @click="onSaveBtnClick">保存</button>
+
+      <!-- 编辑器区域 -->
+      <div class="editor-container rounded-xl overflow-hidden border border-gray-200/50 shadow-inner bg-white/80">
+        <div ref="editorElement"></div>
       </div>
+
     </div>
   </div>
 </template>
 
-<style>
-html,
-body,
-#app {
-  margin: 0;
-  padding: 0;
-  background-color: #f8f9fa;
+<style scoped>
+.glass-card {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 1.5rem;
 }
 
-.pannel {
-  --uno: my-6 px-4 py-4 max-w-screen-md w-4/5 rounded shadow-md;
+.editor-container {
+  min-height: 500px;
 }
 
-.tips-pannel {
-  background-color: #d1e7dd;
+:deep(.cm-editor) {
+  height: 500px;
+  background-color: transparent;
 }
 
-.text-area {
-  --uno: rounded max-w-screen-md w-4/5 border-1 border-gray-300;
-  background-color: white;
+:deep(.cm-gutters) {
+  background-color: rgba(245, 245, 245, 0.5);
+  border-right: 1px solid rgba(0,0,0,0.05);
+  color: #9ca3af;
 }
 
-.text-area .header {
-  background-color: #f5f5f5;
-}
-
-.text-area .footer {
-  --uno: flex flex-row;
-  background-color: #f5f5f5;
-}
-
-.text-area .footer .public-select {
-  --uno: border-1 rounded px-6 py-1.5 text-sm;
-  border-color: #d1d1d1;
-  outline-color: #0969da;
-}
-
-.text-area .footer .save-btn {
-  --uno: rounded px-6 py-1.5 text-sm ml-auto text-white;
-  background-color: #1f883d;
-}
-
-.text-area .footer .save-btn:hover {
-  background-color: #1a7f37;
-}
-
-.text-area .header .filename-input {
-  --uno: border-1 rounded px-3 py-2 text-sm w-60;
-  border-color: #d1d1d1;
-  outline-color: #0969da;
-}
-
-.cm-editor {
-  height: 400px;
-  border-top: 1px solid #ddd;
-  border-bottom: 1px solid #ddd;
-}
-
-.cm-editor.cm-focused {
-  outline: none;
-}
-
-.cm-gutter.cm-lineNumbers {
-  background-color: white;
-}
-
-.cm-gutters {
-  border: none !important;
-}
-
-.cm-selectionBackground {
-  background-color: #54aeff66 !important;
-}
-
-.unsave-attention {
-  --uno: i-mdi-circle-small w-8 h-8 ml-auto;
-  color: #9a6700 !important;
-}
-
-.save-attention {
-  --uno: i-mdi-circle-small w-8 h-8 ml-auto;
-  color: #1f883d !important;
+:deep(.cm-activeLineGutter) {
+  background-color: rgba(0, 0, 0, 0.05);
 }
 </style>

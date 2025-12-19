@@ -2,13 +2,7 @@ import { S3Client } from "@aws-sdk/client-s3";
 import Env from './Env';
 import { parse } from "cookie";
 
-import { DOMParser } from "@xmldom/xmldom";
 
-// Polyfill DOMParser for Cloudflare Workers
-if (typeof globalThis.DOMParser === 'undefined') {
-    // @ts-ignore
-    globalThis.DOMParser = DOMParser;
-}
 
 
 function createS3Client(env: Env) {
