@@ -1,87 +1,97 @@
-<h1 align="center">FileWorker</h1>
+# FileWorker
 
-FileWorker 是一个轻量级的文件管理和在线剪贴板，基于 Cloudflare Pages 和 R2。
+高性能、现代化 **文件云 + 在线剪贴板 + 统一工作台 (Edge Studio)**，基于 **Cloudflare Pages + R2 Binding + Hono v4**。
 
-## ✏️部署
+---
 
-更新无需重新部署，在 fork 的仓库里同步上游即可，cloudflare 会自动更新。
+## 核心特性与架构升级
 
-1. Fork 本仓库
-2. 部署 Pages
+- **Cloudflare Edge 原生极速后端**：
+  - **Hono v4** 驱动的 Pages Functions，极致精简的高性能路由。
+  - **HTTP 206 Partial Content (Range)**：音视频毫秒级切片随意拖拽起播，大文件按需传输无需消耗额外内存。
+  - **智能 ETag / 304 条件缓存**：秒级验证，0 额外带宽消耗。
+  - **Web Crypto 原生鉴权**：支持常数时间密码哈希比对、Session Cookie、`Authorization: Bearer <password>` 及 HMAC-SHA256 临时签名直链生成。
+- **现代化 Edge Studio 统一工作台**：
+  - **全套最新现代化技术栈**：Vite 8 (Rolldown) + Vue 3.5 + Vue Router 5 + Pinia 4 + UnoCSS。
+  - **全局智能 Paste Anywhere**：在任意界面按 `Ctrl + V` 即可将截图或文件直接推送到 R2 并自动复制直链。
+  - **Master-Detail 实时 Inspector**：点击代码直接在右侧内联 CodeMirror 6 编辑保存并一键渲染 Markdown；点击图片/音视频直接播放/缩放查看。
+  - **去模板化极简美学**：中性钛黑哑光质感 + 清新明亮 Sun Amber 琥珀暖黄。
+  - **分享与集成中心**：一键生成 Raw 直链、Markdown、HTML、BBCode 以及指定有效期的临时 HMAC 签名分享直链。
 
-   Cloudflare DashBoard -> Workers & Pages -> Create application -> Pages ->
+---
 
-   Connect to Git -> 选择 Fork 的仓库 ->
+## 路径与 API 契约（100% 保持稳定）
 
-   设置 `Build command`: `pnpm run build`
+| 用途 | 路径 | 鉴权方式 | 说明 |
+|------|------|------|------|
+| 直链读取 / 写入 | `/{key}` | 公开或 Cookie / Token | GET/PUT/PATCH/DELETE，支持 Range 206 秒开、ETag 304 缓存 |
+| 工作台首页 | `/#/` | 页面路由 | 统一资产管理工作台 (Edge Studio) |
+| 文件中心 | `/#/file` | 页面路由 | Hash 路由，自动映射至文件过滤视图 |
+| 在线剪贴板 | `/#/clip` | 页面路由 | Hash 路由，自动映射至代码/剪贴板视图 |
+| 安全登录 | `/#/login` | 页面路由 | 极简安全登录页 |
+| 列表查询 | `/api/list` | Cookie / Bearer | 支持游标分页与前缀过滤 |
+| 鉴权与登录 | `/api/auth` | Cookie / Bearer | GET / POST 登录态维护 |
+| 对象重命名 | `/api/rename` | Cookie / Bearer | POST 重命名对象 |
+| 临时签名直链 | `/api/sign` | Cookie / Bearer | POST 生成指定有效期的 HMAC 签名分享直链 |
+| 批量删除 | `/api/batch-delete` | Cookie / Bearer | POST 批量删除文件 |
+| 存储统计概览 | `/api/stats` | Cookie / Bearer | GET 存储用量与类型统计 |
 
-   设置 `Build output directory`: `dist`
+> **公开文件访问示例**：`https://your-domain.com/<filename>`
 
-   设置环境变量 `NODE_VERSION`: `22` (建议使用最新 LTS 或更高版本)
+---
 
-   点击 `Save and Deploy`
+## 快速部署
 
-3. 创建 R2 存储桶
+### 1. 创建 Cloudflare R2 存储桶
+在 Cloudflare 控制台创建 R2 Bucket（例如 `my-fileworker-bucket`）。
 
-   Cloudflare DashBoard -> R2 -> Create Bucket
-   记住创建的桶名，后面环境变量处会使用
+### 2. 配置 `wrangler.toml`
+将 `wrangler.toml` 中的 `bucket_name` 更改为你的 R2 Bucket 名称：
 
-5. 获取 R2 存储桶的信息
+```toml
+name = "fileworker"
+compatibility_date = "2025-12-18"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist"
 
-   Cloudflare DashBoard -> R2 -> Manage R2 API Tokens -> Create API token
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "my-fileworker-bucket"
+preview_bucket_name = "my-fileworker-bucket"
+```
 
-   选择 Object Read & Write 或者 Admin Read & Write。
+### 3. 配置环境变量
+在 Cloudflare Pages 设置中的 **Environment variables** 添加：
+- `PASSWORD`：访问密码（例如 `your-secret-password`）
+- 或 `PASSWORD_HASH`：密码的 SHA-256 哈希值（可通过 `echo -n "your-password" | sha256sum` 生成）
 
-   创建后记录 `Access Key ID`、`Secret Access Key`。
-   以及存储桶的`Endpoint`（格式为：`https://{account_id}.r2.cloudflarestorage.com`）
+### 4. 构建与部署
 
-   这些信息不会再次显示。
+```bash
+# 安装依赖
+pnpm install
 
-6. 设置环境变量
+# 部署到 Cloudflare Pages
+pnpm run deploy
+```
 
-   Cloudflare DashBoard -> {Your Worker} -> Settings -> Environment Variables -> (Production)Add variables
+---
 
-   添加以下环境变量：
+## 本地开发与调试
 
-   1. S3 地区，对于 R2 存储桶可以直接设置为 `auto`
+```bash
+# 复制开发环境变量示例
+cp .dev.vars.example .dev.vars
 
-      > REGION=auto
+# 启动前端热重载
+pnpm dev
 
-   2. 存储桶名称，这里不是固定的，是上一步中创建存储桶的桶名
+# 在本地完整模拟 Cloudflare R2 与 Functions 边缘运行环境
+pnpm preview
+```
 
-      > BUCKET=store
+---
 
-   3. 存储桶的 Endpoint
+## License
 
-      > ENDPOINT=https://{account_id}.r2.cloudflarestorage.com
-
-   4. Access Key ID
-
-      > ACCESS_KEY_ID=31415926535897932384626433832795
-
-   5. Secret Access Key
-
-      > SECRET_ACCESS_KEY=3141592653589793238462643383279502884197169399375105820974944592
-
-   6. 访问密码（自己设置）
-      > PASSWORD=123456
-
-7. 重新部署
-
-   Cloudflare DashBoard -> {Your Worker} -> Deployments -> All deployments -> Retry deployment
-
-## 💡使用
-
-![index](README/index.png)
-
-![clip](README/clip.png)
-
-![file](README/file.png)
-
-![manage](README/manage.png)
-
-## 🎉赞助
-
-CDN acceleration and security protection for this project are sponsored by [Tencent EdgeOne](https://edgeone.ai/?from=github).
-
-![edgeone](https://edgeone.ai/media/34fe3a45-492d-4ea4-ae5d-ea1087ca7b4b.png)
+MIT License

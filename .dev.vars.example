@@ -1,0 +1,3 @@
+# Local development environment variables
+# Set either PASSWORD or PASSWORD_HASH
+PASSWORD=your-password-here

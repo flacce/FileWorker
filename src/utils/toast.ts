@@ -1,34 +1,31 @@
 import 'toastify-js/src/toastify.css'
-import Toast from 'toastify-js'
+import Toastify from 'toastify-js'
 
-export function toast(message: string, type = 'info') {
-  const themes: Record<string, { background: string; text: string }> = {
-    info: {
-      background: '#e9e9eb',
-      text: '#909399'
-    },
-    success: {
-      background: '#d4edda',
-      text: '#67c23a'
-    },
-    error: {
-      background: '#f8d7da',
-      text: '#f56c6c'
-    }
-  };
+export type ToastType = 'info' | 'success' | 'error'
 
-  const theme = themes[type];
+const themes: Record<ToastType, { background: string; color: string }> = {
+  info: { background: 'rgba(16,16,20,0.92)', color: 'rgba(255,255,255,0.6)' },
+  success: { background: 'rgba(52,211,153,0.12)', color: '#6ee7b7' },
+  error: { background: 'rgba(248,113,113,0.12)', color: '#fca5a5' },
+}
 
-  return Toast({
+export function toast(message: string, type: ToastType = 'info') {
+  const t = themes[type] ?? themes.info
+  return Toastify({
     text: message,
-    duration: 2000,
-    close: false,
+    duration: 2200,
+    gravity: 'top',
     position: 'center',
+    stopOnFocus: true,
     style: {
-      borderRadius: '5px',
-      background: theme.background || '#ffffff',
-      fontSize: '14px',
-      color: theme.text || '#000000'
-    }
+      borderRadius: '16px',
+      background: t.background,
+      color: t.color,
+      fontSize: '13px',
+      border: '1px solid rgba(255,255,255,0.06)',
+      padding: '10px 20px',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+      backdropFilter: 'blur(20px)',
+    },
   }).showToast()
 }

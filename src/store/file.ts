@@ -1,19 +1,19 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import type { Visibility } from '@/types'
 
-const useFileStore = defineStore(
-    'file',
-    () => {
-        const visibility = ref("public");
-        function setVisibility(newVisibility: string) {
-            visibility.value = newVisibility
-        }
+export const useFileStore = defineStore(
+  'file',
+  () => {
+    const visibility = ref<Visibility>('public')
 
-        return { visibility, setVisibility }
-    },
-    {
-        persist: true,
+    function setVisibility(value: Visibility) {
+      visibility.value = value
     }
+
+    return { visibility, setVisibility }
+  },
+  { persist: true },
 )
 
 export default useFileStore
