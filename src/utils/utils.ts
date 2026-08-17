@@ -1,23 +1,14 @@
-export function getRandomFilename(length = 6): string {
-  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789'
-  const bytes = crypto.getRandomValues(new Uint8Array(length))
-  let out = ''
-  for (let i = 0; i < length; i++) {
-    out += alphabet[bytes[i]! % alphabet.length]
-  }
-  return out
-}
+import type { FileCategory, PreviewType } from '@/types'
+export type { FileCategory, PreviewType }
 
-export function formatBytes(bytes: number, decimals = 2): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+export function formatBytes(bytes: number, decimals = 1): string {
+  if (!bytes || bytes <= 0) return '0 B'
   const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-  const i = Math.min(
-    sizes.length - 1,
-    Math.floor(Math.log(bytes) / Math.log(k)),
-  )
-  const value = bytes / k ** i
-  return `${parseFloat(value.toFixed(decimals))} ${sizes[i]}`
+  const dm = decimals < 0 ? 0 : decimals
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  const idx = Math.min(i, sizes.length - 1)
+  return `${parseFloat((bytes / Math.pow(k, idx)).toFixed(dm))} ${sizes[idx]}`
 }
 
 export function formatSpeed(bytesPerSec: number): string {
@@ -25,16 +16,19 @@ export function formatSpeed(bytesPerSec: number): string {
 }
 
 export function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return ''
+  if (!dateStr) return '-'
   try {
     const d = new Date(dateStr)
     const now = new Date()
-    const diff = (now.getTime() - d.getTime()) / 1000
+    const diffMs = now.getTime() - d.getTime()
+    const diffMin = Math.floor(diffMs / 60000)
 
-    if (diff < 60) return '刚刚'
-    if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`
-    if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`
-    if (diff < 86400 * 7) return `${Math.floor(diff / 86400)} 天前`
+    if (diffMin < 1) return '刚刚'
+    if (diffMin < 60) return `${diffMin}分钟前`
+    const diffHours = Math.floor(diffMin / 60)
+    if (diffHours < 24) return `${diffHours}小时前`
+    const diffDays = Math.floor(diffHours / 24)
+    if (diffDays < 7) return `${diffDays}天前`
 
     return d.toLocaleDateString('zh-CN', {
       year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric',
@@ -84,19 +78,12 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-export type FileCategory =
-  | 'all'
-  | 'image'
-  | 'video'
-  | 'audio'
-  | 'document'
-  | 'code'
-  | 'archive'
-  | 'other'
-
 export function fileCategory(key: string | undefined): FileCategory {
-  if (!key) return 'other'
+  if (!key) return 'code'
   const ext = key.includes('.') ? key.split('.').pop()!.toLowerCase() : ''
+  // No extension = clipboard / code snippet
+  if (!ext) return 'code'
+
   const images = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp', 'avif', 'tiff', 'tif'])
   const videos = new Set(['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogg', 'flv', 'm4v'])
   const audios = new Set(['mp3', 'wav', 'flac', 'aac', 'm4a', 'oga', 'opus', 'weba'])
@@ -105,6 +92,7 @@ export function fileCategory(key: string | undefined): FileCategory {
     'txt', 'md', 'markdown', 'json', 'xml', 'yml', 'yaml', 'csv', 'tsv',
     'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'go', 'rs', 'c', 'cpp', 'h',
     'hpp', 'css', 'html', 'sh', 'bash', 'zsh', 'toml', 'ini', 'sql', 'lua',
+    'm3u', 'm3u8', 'conf', 'properties', 'vue', 'svelte', 'env', 'log',
   ])
   const archives = new Set(['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'iso', 'dmg', 'apk'])
 
@@ -118,10 +106,12 @@ export function fileCategory(key: string | undefined): FileCategory {
 }
 
 export function fileIcon(key: string | undefined): string {
-  if (!key) return 'i-mdi-file-outline'
+  if (!key) return 'i-mdi-clipboard-text-outline'
   const ext = key.includes('.') ? key.split('.').pop()!.toLowerCase() : ''
+  if (!ext) return 'i-mdi-clipboard-text-outline'
+
   const map: Record<string, string> = {
-    // 文本 & Markdown
+    // 文本 & Markdown & 播放列表
     txt: 'i-mdi-file-document-outline',
     md: 'i-mdi-language-markdown-outline',
     markdown: 'i-mdi-language-markdown-outline',
@@ -130,6 +120,11 @@ export function fileIcon(key: string | undefined): string {
     csv: 'i-mdi-file-table-outline',
     tsv: 'i-mdi-file-table-outline',
     log: 'i-mdi-file-clock-outline',
+    m3u: 'i-mdi-playlist-music',
+    m3u8: 'i-mdi-playlist-music',
+    conf: 'i-mdi-cog-outline',
+    properties: 'i-mdi-cog-outline',
+    env: 'i-mdi-key-outline',
     // 编程语言
     js: 'i-mdi-language-javascript',
     mjs: 'i-mdi-language-javascript',
@@ -145,6 +140,7 @@ export function fileIcon(key: string | undefined): string {
     sh: 'i-mdi-console',
     bash: 'i-mdi-console',
     sql: 'i-mdi-database',
+    vue: 'i-mdi-vuejs',
     // 图片
     png: 'i-mdi-file-image-outline',
     jpg: 'i-mdi-file-image-outline',
@@ -184,18 +180,12 @@ export function fileIcon(key: string | undefined): string {
   return map[ext] || 'i-mdi-file-outline'
 }
 
-export type PreviewType =
-  | 'image'
-  | 'video'
-  | 'audio'
-  | 'pdf'
-  | 'markdown'
-  | 'text'
-  | 'none'
-
 export function getPreviewType(key: string | undefined): PreviewType {
   if (!key) return 'none'
   const ext = key.includes('.') ? key.split('.').pop()!.toLowerCase() : ''
+  // No extension = clipboard / text snippet
+  if (!ext) return 'text'
+
   const images = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp', 'avif', 'tiff', 'tif'])
   const videos = new Set(['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogg', 'flv', 'm4v'])
   const audios = new Set(['mp3', 'wav', 'flac', 'aac', 'm4a', 'oga', 'opus', 'weba'])
@@ -203,7 +193,8 @@ export function getPreviewType(key: string | undefined): PreviewType {
     'txt', 'csv', 'tsv', 'xml', 'yml', 'yaml', 'json',
     'js', 'ts', 'jsx', 'tsx', 'css', 'html', 'htm',
     'py', 'java', 'go', 'rs', 'sh', 'bash', 'zsh', 'c', 'cpp', 'h',
-    'toml', 'ini', 'log', 'sql', 'lua', 'env',
+    'toml', 'ini', 'log', 'sql', 'lua', 'env', 'm3u', 'm3u8', 'conf', 'properties',
+    'vue', 'svelte',
   ])
 
   if (images.has(ext)) return 'image'
@@ -213,4 +204,13 @@ export function getPreviewType(key: string | undefined): PreviewType {
   if (ext === 'md' || ext === 'markdown') return 'markdown'
   if (texts.has(ext)) return 'text'
   return 'none'
+}
+
+export function getRandomFilename(): string {
+  const chars = '23456789abcdefghjkmnpqrstuvwxyz'
+  let id = ''
+  for (let i = 0; i < 4; i++) {
+    id += chars[Math.floor(Math.random() * chars.length)]
+  }
+  return id
 }

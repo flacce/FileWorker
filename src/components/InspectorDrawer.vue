@@ -73,7 +73,9 @@ const isTextOrCode = computed(
   () => previewType.value === 'text' || previewType.value === 'markdown',
 )
 const fileUrl = computed(() =>
-  props.file?.Key ? `${location.origin}/${props.file.Key}` : '',
+  props.file?.Key
+    ? `${location.origin}/${encodeURIComponent(decodeURIComponent(props.file.Key))}`
+    : '',
 )
 
 const currentVisibility = computed<Visibility>(() => {
@@ -173,7 +175,8 @@ watch(
     if (isTextOrCode.value) {
       textLoading.value = true
       try {
-        const res = await fetch(`/${f.Key}`)
+        const fetchUrl = `/${encodeURIComponent(decodeURIComponent(f.Key || ''))}`
+        const res = await fetch(fetchUrl)
         if (!res.ok) throw new Error(res.statusText)
         const raw = await res.text()
         textContent.value = raw

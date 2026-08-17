@@ -37,7 +37,7 @@ const isAllSelected = computed(() => {
 
 const onCopy = async (key?: string) => {
   if (!key) return
-  const url = `${location.origin}/${key}`
+  const url = `${location.origin}/${encodeURIComponent(decodeURIComponent(key))}`
   const ok = await copyToClipboard(url)
   toast(ok ? '直链已复制' : '复制失败', ok ? 'success' : 'error')
 }
@@ -137,7 +137,7 @@ const onCopy = async (key?: string) => {
             <a
               class="btn-ghost p-1"
               title="下载"
-              :href="`/${file.Key}`"
+              :href="`/${encodeURIComponent(decodeURIComponent(file.Key || ''))}`"
               :download="decodeObjectKey(file.Key || '')"
               @click.stop
             >
@@ -198,7 +198,7 @@ const onCopy = async (key?: string) => {
             class="my-2 h-20 w-full rounded-lg bg-black/40 overflow-hidden flex items-center justify-center border border-white/5"
           >
             <img
-              :src="`/${file.Key}`"
+              :src="`/${encodeURIComponent(decodeURIComponent(file.Key || ''))}`"
               :alt="decodeObjectKey(file.Key || '')"
               class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
               loading="lazy"

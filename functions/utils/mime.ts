@@ -23,7 +23,7 @@ const MIME_TYPES: Record<string, string> = {
   flv: 'video/x-flv',
   m4v: 'video/x-m4v',
 
-  // Audio
+  // Audio & Playlists
   mp3: 'audio/mpeg',
   wav: 'audio/wav',
   flac: 'audio/flac',
@@ -32,6 +32,8 @@ const MIME_TYPES: Record<string, string> = {
   oga: 'audio/ogg',
   opus: 'audio/ogg',
   weba: 'audio/webm',
+  m3u: 'text/plain; charset=utf-8',
+  m3u8: 'application/vnd.apple.mpegurl; charset=utf-8',
 
   // Text & Markdown
   txt: 'text/plain; charset=utf-8',
@@ -44,6 +46,8 @@ const MIME_TYPES: Record<string, string> = {
   yaml: 'text/yaml; charset=utf-8',
   log: 'text/plain; charset=utf-8',
   env: 'text/plain; charset=utf-8',
+  conf: 'text/plain; charset=utf-8',
+  properties: 'text/plain; charset=utf-8',
 
   // Code formats (served as text/plain or specific UTF-8 text for inline view)
   json: 'application/json; charset=utf-8',
@@ -71,6 +75,8 @@ const MIME_TYPES: Record<string, string> = {
   sql: 'text/plain; charset=utf-8',
   lua: 'text/plain; charset=utf-8',
   php: 'text/plain; charset=utf-8',
+  vue: 'text/plain; charset=utf-8',
+  svelte: 'text/plain; charset=utf-8',
 
   // Documents
   pdf: 'application/pdf',
@@ -106,6 +112,8 @@ const FORCE_ATTACHMENT_TYPES = new Set([
 export function guessMimeType(filename: string): string {
   const clean = filename.split('?')[0].split('#')[0]
   const ext = clean.includes('.') ? clean.split('.').pop()!.toLowerCase() : ''
+  // No extension = clipboard snippet = text/plain
+  if (!ext) return 'text/plain; charset=utf-8'
   return MIME_TYPES[ext] || 'application/octet-stream'
 }
 
