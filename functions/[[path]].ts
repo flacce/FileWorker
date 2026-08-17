@@ -40,18 +40,34 @@ app.post('/api/auth', async (c) => {
     return new Response(JSON.stringify({ ok: true }), { status: 200, headers })
   }
 
-  let body: { password?: string }
-  try {
-    body = await c.req.json<{ password?: string }>()
-  } catch {
-    return c.text('无效请求体', 400)
+  let password = ''
+  const contentType = c.req.header('content-type') || ''
+  if (contentType.includes('application/json')) {
+    try {
+      const data = await c.req.json<{ password?: string }>()
+      password = data.password ?? ''
+    } catch {
+      password = ''
+    }
+  } else if (contentType.includes('form')) {
+    try {
+      const form = await c.req.formData()
+      password = (form.get('password') as string) || ''
+    } catch {
+      password = ''
+    }
+  } else {
+    try {
+      password = (await c.req.text()).trim()
+    } catch {
+      password = ''
+    }
   }
 
-  const password = body.password ?? ''
   if (!password) return c.text('请输入密码', 400)
 
   const hash = await sha256(password)
-  if (hash !== expectedHash) {
+  if (hash !== expectedHash && password !== c.env.PASSWORD) {
     return c.text('密码错误', 401)
   }
 
