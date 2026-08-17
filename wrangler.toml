@@ -1,5 +1,10 @@
-# Cloudflare Pages Configuration
+# Cloudflare Pages + R2 Binding
 name = "fileworker"
 compatibility_date = "2025-12-18"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "dist"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "fff"
+preview_bucket_name = "fff"
