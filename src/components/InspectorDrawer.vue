@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { minimalSetup } from 'codemirror'
 import { EditorState } from '@codemirror/state'
 import {
@@ -79,7 +79,7 @@ const fileUrl = computed(() =>
 )
 
 const currentVisibility = computed<Visibility>(() => {
-  return (props.file?.customMetadata?.['x-store-visibility'] as Visibility) || 'private'
+  return (props.file?.customMetadata?.['x-store-visibility'] as Visibility) || 'public'
 })
 
 const renderedMarkdown = computed(() => {
@@ -114,7 +114,6 @@ function getLangExtension(lang: string, name: string) {
     case 'css':
       return langCss()
     case 'py':
-    case 'python':
       return langPython()
     default:
       return []
@@ -158,6 +157,20 @@ const createDoc = (text: string) => {
   })
 }
 
+function mountOrUpdateEditor(text: string) {
+  nextTick(() => {
+    if (!editorEl.value) return
+    if (!editor) {
+      editor = new EditorView({
+        state: createDoc(text),
+        parent: editorEl.value,
+      })
+    } else {
+      editor.setState(createDoc(text))
+    }
+  })
+}
+
 // Load content when file changes
 watch(
   () => props.file,
@@ -180,7 +193,7 @@ watch(
         if (!res.ok) throw new Error(res.statusText)
         const raw = await res.text()
         textContent.value = raw
-        if (editor) editor.setState(createDoc(raw))
+        mountOrUpdateEditor(raw)
       } catch {
         toast('加载文本内容失败', 'error')
       } finally {
@@ -191,16 +204,34 @@ watch(
   { immediate: true },
 )
 
+watch(selectedLang, () => {
+  mountOrUpdateEditor(textContent.value)
+})
+
+watch(markdownView, (val) => {
+  if (val === 'edit') {
+    mountOrUpdateEditor(textContent.value)
+  }
+})
+
+watch(editorEl, (el) => {
+  if (el && isTextOrCode.value) {
+    mountOrUpdateEditor(textContent.value)
+  }
+})
+
 const saveText = async () => {
   if (!props.file?.Key) return
   textSaving.value = true
   try {
+    const textToSave = editor ? editor.state.doc.toString() : textContent.value
     await putFile(
       decodeObjectKey(props.file.Key),
-      textContent.value,
+      textToSave,
       currentVisibility.value,
       'text',
     )
+    textContent.value = textToSave
     textModified.value = false
     toast('已保存修改', 'success')
     emit('refresh')
@@ -282,21 +313,15 @@ const onKeydown = (e: KeyboardEvent) => {
 
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
-  if (editorEl.value) {
-    editor = new EditorView({
-      state: createDoc(textContent.value),
-      parent: editorEl.value,
-    })
+  if (editorEl.value && isTextOrCode.value) {
+    mountOrUpdateEditor(textContent.value)
   }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   editor?.destroy()
-})
-
-watch(selectedLang, () => {
-  if (editor) editor.setState(createDoc(textContent.value))
+  editor = undefined
 })
 </script>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { minimalSetup } from 'codemirror'
 import { EditorState } from '@codemirror/state'
 import {
@@ -105,18 +105,40 @@ const createDoc = (text: string) => {
   })
 }
 
+function mountOrUpdateEditor(text: string) {
+  nextTick(() => {
+    if (!editorEl.value) return
+    if (!editor) {
+      editor = new EditorView({
+        state: createDoc(text),
+        parent: editorEl.value,
+      })
+    } else {
+      editor.setState(createDoc(text))
+    }
+  })
+}
+
 watch(
   () => props.open,
   (val) => {
     if (val) {
       filename.value = getRandomFilename()
       code.value = props.initialText || ''
-      if (editor) {
-        editor.setState(createDoc(code.value))
-      }
+      mountOrUpdateEditor(code.value)
     }
   },
 )
+
+watch(selectedLang, () => {
+  mountOrUpdateEditor(code.value)
+})
+
+watch(editorEl, (el) => {
+  if (el && props.open) {
+    mountOrUpdateEditor(code.value)
+  }
+})
 
 const save = async () => {
   const name = filename.value.trim()
@@ -126,7 +148,8 @@ const save = async () => {
   }
   saving.value = true
   try {
-    await putFile(name, code.value, visibility.value, 'text')
+    const textToSave = editor ? editor.state.doc.toString() : code.value
+    await putFile(name, textToSave, visibility.value, 'text')
     toast(`已保存剪贴板「${name}」`, 'success')
     emit('saved', name)
     emit('close')
@@ -147,16 +170,14 @@ const onKeydown = (e: KeyboardEvent) => {
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
   if (editorEl.value) {
-    editor = new EditorView({
-      state: createDoc(code.value),
-      parent: editorEl.value,
-    })
+    mountOrUpdateEditor(code.value)
   }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   editor?.destroy()
+  editor = undefined
 })
 </script>
 
