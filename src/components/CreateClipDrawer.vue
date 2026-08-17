@@ -32,7 +32,7 @@ const emit = defineEmits<{
 }>()
 
 const filename = ref(getRandomFilename())
-const visibility = ref<Visibility>('private')
+const visibility = ref<Visibility>('public')
 const selectedLang = ref('auto')
 const saving = ref(false)
 const code = ref('')

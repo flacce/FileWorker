@@ -16,7 +16,7 @@ import {
 
 const app = new Hono<{ Bindings: Env }>()
 
-// Global CORS & Error Handling
+// CORS and Global Error Handler
 app.use('*', cors())
 app.onError((err, c) => {
   console.error('Worker Error:', err)
@@ -56,27 +56,24 @@ app.post('/api/auth', async (c) => {
   }
 
   const headers = new Headers({ 'Content-Type': 'application/json' })
-  createSessionCookieHeaders(hash).forEach(([k, v]) => headers.append(k, v))
+  createSessionCookieHeaders(hash, password).forEach(([k, v]) => headers.append(k, v))
   return new Response(JSON.stringify({ ok: true }), { status: 200, headers })
 })
 
-// ── List API ────────────────────────────────────────────────
+// ── List Files API ──────────────────────────────────────────
 
 app.get('/api/list', async (c) => {
-  if (!(await checkAuth(c.env, c.req.raw))) {
-    return c.text('Unauthorized', 401)
-  }
+  if (!(await checkAuth(c.env, c.req.raw))) return c.text('Unauthorized', 401)
 
   const query = c.req.query()
-  const maxKeysRaw = query['MaxKeys'] || query['limit']
-  const maxKeys = maxKeysRaw ? Number(maxKeysRaw) : 1000
-  const prefix = query['Prefix'] || query['prefix'] || undefined
-  const cursor = query['ContinuationToken'] || query['cursor'] || undefined
-  const delimiter = query['delimiter'] || undefined
+  const delimiter = query.delimiter || undefined
+  const prefix = query.prefix || undefined
+  const cursor = query.continuationToken || query.cursor || undefined
+  const maxKeys = query.maxKeys ? parseInt(query.maxKeys, 10) : 50
 
   try {
     const listed = await c.env.BUCKET.list({
-      limit: Number.isFinite(maxKeys) && maxKeys > 0 ? Math.min(maxKeys, 1000) : 1000,
+      limit: Math.min(Math.max(maxKeys, 1), 1000),
       prefix,
       cursor,
       delimiter,
@@ -263,6 +260,17 @@ app.get('/:key{.+}', async (c) => {
     })
   }
 
+  // Fallback to encodeURI key
+  if (!object) {
+    const ek = encodeURI(dk)
+    if (ek !== dk && ek !== rawKey) {
+      object = await c.env.BUCKET.get(ek, {
+        range: reqHeaders,
+        onlyIf: reqHeaders,
+      })
+    }
+  }
+
   if (!object) return c.text('未找到文件', 404)
 
   // Conditional request 304 Not Modified
@@ -419,7 +427,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url)
   const pathname = url.pathname
 
-  // 1. Direct pass-through for static SPA entry and built assets
+  // 1. Direct pass-through ONLY for SPA index and Vite assets
   if (
     pathname === '/' ||
     pathname === '/index.html' ||
@@ -429,20 +437,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     return context.next()
   }
 
-  // 2. Delegate to Hono router
-  const response = await app.fetch(context.request, context.env)
-
-  // 3. If Hono returned 404 on GET (and not an explicit /api endpoint), check static asset fallback
-  if (
-    response.status === 404 &&
-    context.request.method === 'GET' &&
-    !pathname.startsWith('/api/')
-  ) {
-    const assetResp = await context.next()
-    if (assetResp.status !== 404) {
-      return assetResp
-    }
-  }
-
-  return response
+  // 2. All other requests (/{key}, /api/*) are handled directly by Hono router!
+  return app.fetch(context.request, context.env)
 }

@@ -148,7 +148,7 @@ const selectAll = () => {
 }
 
 // Upload file list
-const uploadFiles = (fileList: File[], visibility: Visibility = 'private') => {
+const uploadFiles = (fileList: File[], visibility: Visibility = 'public') => {
   if (!fileList.length) return
 
   for (const file of fileList) {

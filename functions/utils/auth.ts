@@ -84,31 +84,42 @@ export function parseCookies(header: string): Record<string, string> {
 }
 
 /**
- * Authenticate incoming request against session cookie, Bearer token, or HMAC share query.
+ * Authenticate incoming request against session cookie, PASSWORD cookie, Bearer token, or HMAC share query.
  */
 export async function checkAuth(env: Env, request: Request): Promise<boolean> {
   const expected = await getExpectedHash(env)
-  if (!expected) return true // No password set means open access
+  if (!expected) return true // No password configured means open access
 
-  // 1. Session cookie check
   const cookieHeader = request.headers.get('Cookie') ?? ''
   const cookies = parseCookies(cookieHeader)
+
+  // 1. Session cookie check (__session)
   if (cookies['__session'] && timingSafeEqual(cookies['__session'], expected)) {
     return true
   }
 
-  // 2. Authorization header check (Bearer <token_or_password>)
+  // 2. Legacy / direct PASSWORD cookie check
+  if (cookies['PASSWORD']) {
+    const rawPass = decodeURIComponent(cookies['PASSWORD'])
+    if (env.PASSWORD && timingSafeEqual(rawPass, env.PASSWORD)) return true
+    if (timingSafeEqual(rawPass, expected)) return true
+    const hash = await sha256(rawPass)
+    if (timingSafeEqual(hash, expected)) return true
+  }
+
+  // 3. Authorization header check (Bearer <token_or_password>)
   const authHeader = request.headers.get('Authorization')
   if (authHeader) {
     const token = authHeader.replace(/^Bearer\s+/i, '').trim()
     if (token) {
+      if (env.PASSWORD && timingSafeEqual(token, env.PASSWORD)) return true
       if (timingSafeEqual(token, expected)) return true
       const hashedToken = await sha256(token)
       if (timingSafeEqual(hashedToken, expected)) return true
     }
   }
 
-  // 3. HMAC share signature verification (?sign=...&expire=...)
+  // 4. HMAC share signature verification (?sign=...&expire=...)
   const url = new URL(request.url)
   const sign = url.searchParams.get('sign')
   const expire = url.searchParams.get('expire')
@@ -118,7 +129,10 @@ export async function checkAuth(env: Env, request: Request): Promise<boolean> {
       const pathClean = (url.pathname + url.search)
         .replace(/([?&])sign=[^&]+&?/, (_, p1: string) => (p1 === '?' ? '?' : ''))
         .replace(/[?&]$/, '')
-      return hmacVerify(pathClean, expected, sign)
+      return (
+        (await hmacVerify(pathClean, expected, sign)) ||
+        (env.PASSWORD ? await hmacVerify(pathClean, env.PASSWORD, sign) : false)
+      )
     }
   }
 
@@ -128,9 +142,16 @@ export async function checkAuth(env: Env, request: Request): Promise<boolean> {
 /**
  * Generate standard Set-Cookie headers for successful login.
  */
-export function createSessionCookieHeaders(hash: string): [string, string][] {
-  return [
-    ['Set-Cookie', `__session=${hash}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=31536000`],
-    ['Set-Cookie', `__auth=1; Path=/; Secure; SameSite=Strict; Max-Age=31536000`],
+export function createSessionCookieHeaders(hash: string, plaintext?: string): [string, string][] {
+  const headers: [string, string][] = [
+    ['Set-Cookie', `__session=${hash}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=31536000`],
+    ['Set-Cookie', `__auth=1; Path=/; Secure; SameSite=Lax; Max-Age=31536000`],
   ]
+  if (plaintext) {
+    headers.push([
+      'Set-Cookie',
+      `PASSWORD=${encodeURIComponent(plaintext)}; Path=/; Secure; SameSite=Lax; Max-Age=31536000`,
+    ])
+  }
+  return headers
 }
