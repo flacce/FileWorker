@@ -301,17 +301,21 @@ app.get('/:key{.+}', async (c) => {
   }
 
   const customMetadata = object.customMetadata ?? {}
-  const visibility = customMetadata['x-store-visibility'] ?? 'private'
+  // Default to public if not explicitly marked private
+  const visibility = customMetadata['x-store-visibility'] ?? 'public'
 
-  // Access control
-  if (visibility !== 'public' && !(await checkAuth(c.env, c.req.raw))) {
+  // Access control: only block if explicitly private and not authenticated
+  if (visibility === 'private' && !(await checkAuth(c.env, c.req.raw))) {
     return c.text('未找到文件或无权访问', 404)
   }
 
   const isText = customMetadata['x-store-type'] === 'text'
-  const contentType = isText
-    ? 'text/plain; charset=utf-8'
-    : (object.httpMetadata?.contentType || guessMimeType(dk))
+  let contentType = object.httpMetadata?.contentType
+  if (!contentType || contentType === 'application/octet-stream') {
+    contentType = isText ? 'text/plain; charset=utf-8' : guessMimeType(dk)
+  } else if (isText) {
+    contentType = 'text/plain; charset=utf-8'
+  }
 
   const headers = new Headers()
 
@@ -327,7 +331,7 @@ app.get('/:key{.+}', async (c) => {
   headers.set('Last-Modified', object.uploaded.toUTCString())
   headers.set('Accept-Ranges', 'bytes')
 
-  // Content Disposition
+  // Content Disposition: inline for previewable media/text, attachment only for archives
   if (isForceAttachment(contentType)) {
     headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(dk)}`)
   } else {
