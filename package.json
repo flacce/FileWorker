@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "run-p type-check \"build-only {@}\" --",
-    "preview": "pnpm run build && wrangler pages dev ./dist",
+    "preview": "pnpm run build && wrangler pages dev ./dist --r2=BUCKET",
     "build-only": "vite build",
     "type-check": "vue-tsc --build --force",
     "lint": "eslint . --fix",
