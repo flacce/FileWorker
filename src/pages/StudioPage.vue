@@ -60,7 +60,7 @@ watch(
 )
 
 const filteredFiles = computed(() => {
-  let list = files.value
+  let list = [...files.value]
 
   // Category filter
   if (activeCategory.value !== 'all') {
@@ -78,6 +78,13 @@ const filteredFiles = computed(() => {
       decodeObjectKey(f.Key || '').toLowerCase().includes(q),
     )
   }
+
+  // Sort by LastModified descending (newest first)
+  list.sort((a, b) => {
+    const timeA = a.LastModified ? new Date(a.LastModified).getTime() : 0
+    const timeB = b.LastModified ? new Date(b.LastModified).getTime() : 0
+    return timeB - timeA
+  })
 
   return list
 })

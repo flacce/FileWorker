@@ -326,12 +326,17 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <aside
-    v-if="file"
-    class="w-96 md:w-[440px] xl:w-[480px] shrink-0 border-l border-white/8 bg-studio-surface flex flex-col min-h-0 z-10 transition-all select-none"
-  >
-    <!-- Inspector Header -->
-    <div class="h-14 border-b border-white/8 px-4 flex items-center justify-between gap-2 shrink-0">
+  <Transition name="fade-in">
+    <div
+      v-if="file"
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md select-none"
+      @click.self="emit('close')"
+    >
+      <div
+        class="w-full max-w-4xl h-[85vh] max-h-[780px] rounded-2xl border border-white/12 bg-studio-surface shadow-2xl flex flex-col min-h-0 overflow-hidden animate-fade-in"
+      >
+        <!-- Inspector Header -->
+        <div class="h-14 border-b border-white/8 px-4 sm:px-5 flex items-center justify-between gap-3 shrink-0 bg-black/20">
       <div class="min-w-0 flex items-center gap-2.5">
         <div class="w-7 h-7 rounded-lg bg-black/40 border border-white/8 flex items-center justify-center text-zinc-400 shrink-0">
           <div :class="fileIcon(file.Key)" class="text-sm text-edge-orange"></div>
@@ -667,7 +672,9 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </div>
-  </aside>
+      </div>
+    </div>
+  </Transition>
 </template>
 
 <style scoped>
