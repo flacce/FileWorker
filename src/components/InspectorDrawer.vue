@@ -159,6 +159,13 @@ const createDoc = (text: string) => {
   })
 }
 
+function destroyEditor() {
+  if (editor) {
+    editor.destroy()
+    editor = undefined
+  }
+}
+
 function mountOrUpdateEditor(text: string) {
   nextTick(() => {
     if (!editorEl.value) return
@@ -185,7 +192,10 @@ watch(
     isRenaming.value = false
     activeTab.value = 'content'
 
-    if (!f) return
+    if (!f) {
+      destroyEditor()
+      return
+    }
 
     if (isTextOrCode.value) {
       textLoading.value = true
