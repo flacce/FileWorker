@@ -180,7 +180,13 @@ export function fileIcon(key: string | undefined): string {
   return map[ext] || 'i-mdi-file-outline'
 }
 
-export function getPreviewType(key: string | undefined): PreviewType {
+export function getPreviewType(
+  key: string | undefined,
+  metadata?: Record<string, string>,
+): PreviewType {
+  // Check store-type metadata first
+  if (metadata?.['x-store-type'] === 'text') return 'text'
+
   if (!key) return 'none'
   const ext = key.includes('.') ? key.split('.').pop()!.toLowerCase() : ''
   // No extension = clipboard / text snippet
@@ -193,8 +199,8 @@ export function getPreviewType(key: string | undefined): PreviewType {
     'txt', 'csv', 'tsv', 'xml', 'yml', 'yaml', 'json',
     'js', 'ts', 'jsx', 'tsx', 'css', 'html', 'htm',
     'py', 'java', 'go', 'rs', 'sh', 'bash', 'zsh', 'c', 'cpp', 'h',
-    'toml', 'ini', 'log', 'sql', 'lua', 'env', 'm3u', 'm3u8', 'conf', 'properties',
-    'vue', 'svelte',
+    'hpp', 'toml', 'ini', 'log', 'sql', 'lua', 'env', 'm3u', 'm3u8', 'conf', 'properties',
+    'vue', 'svelte', 'dockerfile', 'makefile', 'gitignore', 'editorconfig',
   ])
 
   if (images.has(ext)) return 'image'

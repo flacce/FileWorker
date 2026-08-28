@@ -68,7 +68,9 @@ const renameInput = ref('')
 const renameLoading = ref(false)
 
 const fileName = computed(() => decodeObjectKey(props.file?.Key || ''))
-const previewType = computed<PreviewType>(() => getPreviewType(props.file?.Key))
+const previewType = computed<PreviewType>(() =>
+  getPreviewType(props.file?.Key, props.file?.customMetadata),
+)
 const isTextOrCode = computed(
   () => previewType.value === 'text' || previewType.value === 'markdown',
 )

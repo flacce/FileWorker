@@ -226,7 +226,7 @@ const onCopy = async (key?: string) => {
 
             <!-- Image Preview Thumbnail if available -->
             <div
-              v-if="getPreviewType(file.Key) === 'image'"
+              v-if="getPreviewType(file.Key, file.customMetadata) === 'image'"
               class="my-2 h-20 w-full rounded-lg bg-black/40 overflow-hidden flex items-center justify-center border border-white/5"
             >
               <img
