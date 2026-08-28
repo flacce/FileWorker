@@ -49,11 +49,12 @@ const onCopy = async (key?: string) => {
     <div class="flex-1 overflow-y-auto min-h-0 p-3 sm:p-4">
       <div class="max-w-7xl mx-auto w-full">
         <!-- Loading Skeleton -->
-        <div v-if="loading && !files.length" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
-          <div v-for="i in 9" :key="i" class="h-12 rounded-xl bg-studio-surface border border-white/5 animate-pulse-subtle flex items-center px-3.5 gap-3">
-            <div class="w-6 h-6 rounded bg-white/10 shrink-0"></div>
+        <div v-if="loading && !files.length" class="space-y-2">
+          <div v-for="i in 8" :key="i" class="h-11 rounded-lg bg-studio-surface border border-white/5 animate-pulse-subtle flex items-center px-4 gap-3">
+            <div class="w-5 h-5 rounded bg-white/10 shrink-0"></div>
             <div class="h-3 rounded bg-white/10 w-1/3"></div>
-            <div class="ml-auto h-3 rounded bg-white/10 w-14 shrink-0"></div>
+            <div class="ml-auto h-3 rounded bg-white/10 w-16 shrink-0"></div>
+            <div class="h-3 rounded bg-white/10 w-24 shrink-0 hidden sm:block"></div>
           </div>
         </div>
 
@@ -71,71 +72,102 @@ const onCopy = async (key?: string) => {
           </p>
         </div>
 
-        <!-- List View Mode -->
-        <div v-else-if="viewMode === 'list'" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+        <!-- List View Mode (Classic Table / File Explorer Layout) -->
+        <div v-else-if="viewMode === 'list'" class="flex flex-col rounded-xl border border-white/6 bg-studio-surface/50 overflow-hidden divide-y divide-white/5">
+          <!-- Table Header -->
+          <div class="flex items-center gap-3 px-4 py-2.5 bg-white/3 text-[11px] font-medium text-zinc-400 select-none">
+            <div class="w-5 shrink-0 flex items-center justify-center">
+              <button
+                type="button"
+                class="text-zinc-500 hover:text-white transition-colors"
+                @click="emit('selectAll')"
+                :title="isAllSelected ? '取消全选' : '全选'"
+              >
+                <div
+                  :class="
+                    isAllSelected
+                      ? 'i-mdi-checkbox-marked text-edge-orange'
+                      : selectedKeys.size > 0
+                        ? 'i-mdi-minus-box text-edge-orange'
+                        : 'i-mdi-checkbox-blank-outline opacity-40 hover:opacity-100'
+                  "
+                  class="text-base"
+                ></div>
+              </button>
+            </div>
+            <div class="flex-1 min-w-0">名称</div>
+            <div class="w-20 text-right shrink-0">大小</div>
+            <div class="w-36 text-right shrink-0 hidden sm:block">修改时间</div>
+            <div class="w-24 text-center shrink-0">操作</div>
+          </div>
+
+          <!-- Table Rows -->
           <div
             v-for="file in files"
             :key="file.Key"
-            class="group flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all cursor-pointer select-none relative overflow-hidden"
+            class="group flex items-center gap-3 px-4 py-2.5 transition-all cursor-pointer select-none"
             :class="[
               selectedKey === file.Key
-                ? 'bg-edge-orange/10 border-edge-orange/40 text-white shadow-sm ring-1 ring-edge-orange/30'
+                ? 'bg-edge-orange/10 text-white'
                 : selectedKeys.has(file.Key || '')
-                  ? 'bg-white/8 border-white/25 text-white'
-                  : 'bg-studio-surface/80 border-white/6 hover:border-white/20 hover:bg-studio-surface text-zinc-300 shadow-sm'
+                  ? 'bg-white/8 text-white'
+                  : 'hover:bg-white/5 text-zinc-300'
             ]"
             @click="emit('select', file)"
           >
             <!-- Checkbox -->
             <button
               type="button"
-              class="text-zinc-500 hover:text-white transition-colors shrink-0"
+              class="w-5 shrink-0 text-zinc-500 hover:text-white transition-colors flex items-center justify-center"
               @click.stop="file.Key && emit('toggleCheck', file.Key)"
             >
               <div
                 :class="
                   selectedKeys.has(file.Key || '')
                     ? 'i-mdi-checkbox-marked text-edge-orange'
-                    : 'i-mdi-checkbox-blank-outline opacity-40 group-hover:opacity-100'
+                    : 'i-mdi-checkbox-blank-outline opacity-30 group-hover:opacity-100'
                 "
                 class="text-base"
               ></div>
             </button>
 
-            <!-- Type Icon -->
-            <div class="w-6 h-6 rounded flex items-center justify-center shrink-0 text-zinc-400 group-hover:text-edge-orange transition-colors">
-              <div :class="fileIcon(file.Key)" class="text-base"></div>
-            </div>
-
-            <!-- Filename -->
-            <div class="min-w-0 flex-1 flex items-center gap-1.5 overflow-hidden">
+            <!-- Type Icon & Filename -->
+            <div class="flex-1 min-w-0 flex items-center gap-2.5">
+              <div class="w-6 h-6 rounded flex items-center justify-center shrink-0 text-zinc-400 group-hover:text-edge-orange transition-colors">
+                <div :class="fileIcon(file.Key)" class="text-base"></div>
+              </div>
               <span class="truncate text-xs font-medium text-zinc-200 group-hover:text-white" :title="decodeObjectKey(file.Key || '')">
                 {{ decodeObjectKey(file.Key || '') }}
               </span>
               <span
                 v-if="file.customMetadata?.['x-store-visibility'] === 'public'"
-                class="badge-public shrink-0 text-[10px] px-1 py-0"
+                class="badge-public shrink-0 text-[10px] px-1.5 py-0.2"
               >
                 公开
               </span>
             </div>
 
-            <!-- Metadata -->
-            <div class="flex items-center gap-1 font-mono text-[10px] text-zinc-500 shrink-0">
-              <span>{{ formatBytes(file.Size ?? 0) }}</span>
+            <!-- Size -->
+            <div class="w-20 text-right font-mono text-[11px] text-zinc-400 shrink-0">
+              {{ formatBytes(file.Size ?? 0) }}
             </div>
 
-            <!-- Hover Action Buttons -->
-            <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            <!-- Modified Time -->
+            <div class="w-36 text-right font-mono text-[11px] text-zinc-500 shrink-0 hidden sm:block">
+              {{ formatDate(file.LastModified) }}
+            </div>
+
+            <!-- Actions -->
+            <div class="w-24 shrink-0 flex items-center justify-center gap-1">
               <button
-                class="btn-ghost p-1"
+                class="btn-ghost p-1 text-zinc-400 hover:text-white"
                 title="复制直链"
                 @click.stop="onCopy(file.Key)"
               >
                 <div class="i-mdi-link-variant text-xs"></div>
               </button>
               <a
-                class="btn-ghost p-1"
+                class="btn-ghost p-1 text-zinc-400 hover:text-white"
                 title="下载"
                 :href="`/${encodeURIComponent(decodeURIComponent(file.Key || ''))}`"
                 :download="decodeObjectKey(file.Key || '')"
@@ -144,7 +176,7 @@ const onCopy = async (key?: string) => {
                 <div class="i-mdi-download text-xs"></div>
               </a>
               <button
-                class="btn-ghost p-1 hover:text-rose-400"
+                class="btn-ghost p-1 text-zinc-400 hover:text-rose-400"
                 title="删除"
                 @click.stop="file.Key && emit('delete', file.Key)"
               >
