@@ -18,6 +18,8 @@
     "deploy": "pnpm run build && wrangler pages deploy ./dist"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1130.0",
+    "@aws-sdk/s3-request-presigner": "^3.1130.0",
     "@codemirror/lang-css": "^6.3.1",
     "@codemirror/lang-html": "^6.4.12",
     "@codemirror/lang-javascript": "^6.2.5",
@@ -26,6 +28,7 @@
     "@codemirror/lang-python": "^6.2.1",
     "@codemirror/state": "^6.7.1",
     "@codemirror/view": "^6.43.9",
+    "@tanstack/vue-virtual": "^3.13.37",
     "@unocss/reset": "^66.8.1",
     "codemirror": "^6.0.2",
     "cookie": "^2.0.1",

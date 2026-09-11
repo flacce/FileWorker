@@ -210,6 +210,74 @@ app.post('/api/sign', async (c) => {
   }
 })
 
+// ── Presigned Upload URL API (R2 Direct S3 Upload) ──────────
+
+app.post('/api/upload-url', async (c) => {
+  if (!(await checkAuth(c.env, c.req.raw))) return c.text('Unauthorized', 401)
+
+  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME } = c.env
+  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
+    return c.json(
+      {
+        supported: false,
+        error: '未配置 R2 S3 API 密钥环境变量（R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY）',
+      },
+      200,
+    )
+  }
+
+  try {
+    const body = await c.req.json<{
+      filename: string
+      contentType?: string
+      visibility?: string
+      type?: string
+    }>()
+
+    const filename = body.filename ? decodeURIComponent(body.filename) : ''
+    if (!filename) return c.text('参数 filename 无效', 400)
+
+    const bucketName = R2_BUCKET_NAME || 'fff'
+    const contentType = body.contentType || 'application/octet-stream'
+    const metadata: Record<string, string> = {
+      'x-store-visibility': body.visibility || 'public',
+      'x-store-type': body.type || 'file',
+    }
+
+    const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3')
+    const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner')
+
+    const s3 = new S3Client({
+      region: 'auto',
+      endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: R2_ACCESS_KEY_ID,
+        secretAccessKey: R2_SECRET_ACCESS_KEY,
+      },
+    })
+
+    const command = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: filename,
+      ContentType: contentType,
+      Metadata: metadata,
+    })
+
+    const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 900 })
+
+    return c.json({
+      supported: true,
+      presignedUrl,
+      filename,
+      contentType,
+      metadata,
+    })
+  } catch (err: unknown) {
+    const error = err as Error
+    return c.json({ supported: false, error: error.message || '生成直传链接失败' }, 500)
+  }
+})
+
 // ── Storage Stats API ───────────────────────────────────────
 
 app.get('/api/stats', async (c) => {

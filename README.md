@@ -65,6 +65,14 @@ preview_bucket_name = "my-fileworker-bucket"
 - `PASSWORD`：访问密码（例如 `your-secret-password`）
 - 或 `PASSWORD_HASH`：密码的 SHA-256 哈希值（可通过 `echo -n "your-password" | sha256sum` 生成）
 
+#### (可选) 开启大文件 R2 S3 直传（突破 Worker 100MB 限制）：
+如果需要上传超过 100MB 乃至数 GB 的大文件，可以在 Cloudflare 控制台申请 R2 API Token（具有读写权限），并在 Pages 环境变量中配置：
+- `R2_ACCOUNT_ID`：你的 Cloudflare 账户 ID
+- `R2_ACCESS_KEY_ID`：R2 API 访问密钥 ID
+- `R2_SECRET_ACCESS_KEY`：R2 API 机密访问密钥
+- `R2_BUCKET_NAME`：R2 存储桶名（如不填默认使用 `fff`）
+> 注：未配置上述 S3 变量时，系统会自动平滑降级走原生 Pages Worker 管道上传。
+
 ### 4. 构建与部署
 
 ```bash

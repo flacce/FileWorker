@@ -16,8 +16,12 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
+          if (id.includes('@codemirror/lang-')) {
+            const lang = id.split('@codemirror/lang-')[1].split('/')[0]
+            return `cm-lang-${lang}`
+          }
           if (id.includes('@codemirror') || id.includes('codemirror')) {
-            return 'codemirror-bundle'
+            return 'codemirror-core'
           }
           if (id.includes('marked')) {
             return 'marked-bundle'

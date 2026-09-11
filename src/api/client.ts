@@ -86,12 +86,13 @@ export function uploadXhr(
   body: Blob | File | string,
   headers: Record<string, string> = {},
   onProgress?: (percent: number, loaded: number, total: number) => void,
+  withCredentials = true,
 ): { promise: Promise<string>; abort: () => void } {
   const xhr = new XMLHttpRequest()
 
   const promise = new Promise<string>((resolve, reject) => {
     xhr.open('PUT', url, true)
-    xhr.withCredentials = true
+    xhr.withCredentials = withCredentials
 
     for (const [k, v] of Object.entries(headers)) {
       xhr.setRequestHeader(k, v)
