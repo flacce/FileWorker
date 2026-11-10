@@ -18,49 +18,63 @@ export default defineConfig({
   transformers: [transformerDirectives()],
   theme: {
     colors: {
-      studio: {
-        bg: '#09090b',
-        surface: '#121215',
-        elevated: '#18181b',
-        card: '#1c1c21',
+      bento: {
+        canvas: '#07080a',
+        cell: '#0d0f12',
+        raised: '#14171c',
+        hover: '#1b1f26',
+        active: '#222730',
       },
-      zinc: {
-        100: '#f4f4f5',
-        200: '#e4e4e7',
-        300: '#d4d4d8',
-        400: '#a1a1aa',
-        500: '#71717a',
-        600: '#52525b',
-        700: '#3f3f46',
-        800: '#27272a',
-        900: '#18181b',
-        950: '#09090b',
+      ink: {
+        primary: '#edeff2',
+        secondary: '#949ba6',
+        muted: '#5e6572',
+        faint: '#3b4049',
       },
-      edge: {
-        orange: '#fbbf24', // Fresh Luminous Amber
-        amber: '#fbbf24',
-        cyan: '#38bdf8',
-        emerald: '#34d399',
-        rose: '#fb7185',
+      accent: {
+        DEFAULT: '#2dd4bf',
+        hover: '#5eead4',
+        dim: 'rgba(45, 212, 191, 0.12)',
+        line: 'rgba(45, 212, 191, 0.32)',
+      },
+      danger: {
+        DEFAULT: '#f87171',
+        dim: 'rgba(248, 113, 113, 0.12)',
+        line: 'rgba(248, 113, 113, 0.28)',
       },
     },
+    borderRadius: {
+      bento: '8px',
+      ctrl: '6px',
+      tag: '4px',
+    },
     fontFamily: {
-      sans: '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif',
-      mono: '"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace',
+      sans: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
+      mono: '"JetBrains Mono", "Cascadia Mono", "SF Mono", Consolas, monospace',
     },
   },
   shortcuts: {
-    /* ── High-density UI tokens ──────────────── */
-    'panel': 'bg-studio-surface border border-white/8 rounded-xl',
-    'panel-elevated': 'bg-studio-elevated border border-white/10 rounded-xl shadow-xl',
-    'input-clean': 'w-full bg-studio-elevated border border-white/10 rounded-lg px-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 outline-none transition-colors focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/30',
-    'btn-primary': 'inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-400 text-zinc-950 hover:bg-amber-300 active:scale-[0.98] transition-all cursor-pointer select-none disabled:opacity-40 disabled:pointer-events-none shadow-sm shadow-amber-500/10',
-    'btn-secondary': 'inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.05] border border-white/10 text-zinc-200 hover:bg-white/[0.09] hover:text-white active:scale-[0.98] transition-all cursor-pointer select-none disabled:opacity-40 disabled:pointer-events-none',
-    'btn-ghost': 'inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-xs text-zinc-400 hover:text-zinc-100 hover:bg-white/6 transition-colors cursor-pointer select-none disabled:opacity-40 disabled:pointer-events-none',
-    'btn-danger': 'inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:bg-rose-500/25 transition-colors cursor-pointer select-none',
-    'badge': 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium',
-    'badge-public': 'badge bg-emerald-500/10 border border-emerald-500/25 text-emerald-400',
-    'badge-private': 'badge bg-zinc-500/10 border border-zinc-500/25 text-zinc-400',
-    'badge-count': 'inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-white/10 text-zinc-300',
+    'bento-box':
+      'bg-bento-cell border border-white/[0.06] rounded-bento overflow-hidden flex flex-col',
+    'bento-subbox':
+      'bg-bento-raised border border-white/[0.05] rounded-ctrl',
+    'ctrl-input':
+      'w-full bg-bento-raised border border-white/[0.07] rounded-ctrl px-2.5 h-8 text-xs text-ink-primary placeholder-ink-muted outline-none transition-colors focus:border-accent-line focus:bg-bento-hover',
+    'btn-accent':
+      'inline-flex items-center justify-center gap-1.5 px-3 h-8 rounded-ctrl text-xs font-medium bg-accent text-[#061210] hover:bg-accent-hover active:translate-y-[0.5px] transition-all cursor-pointer select-none disabled:opacity-40 disabled:pointer-events-none',
+    'btn-surface':
+      'inline-flex items-center justify-center gap-1.5 px-2.5 h-8 rounded-ctrl text-xs font-medium bg-bento-raised border border-white/[0.07] text-ink-primary hover:bg-bento-hover hover:border-white/[0.12] active:translate-y-[0.5px] transition-all cursor-pointer select-none disabled:opacity-40 disabled:pointer-events-none',
+    'btn-quiet':
+      'inline-flex items-center justify-center gap-1 px-2 h-7 rounded-ctrl text-xs text-ink-secondary hover:text-ink-primary hover:bg-white/[0.05] transition-colors cursor-pointer select-none disabled:opacity-40 disabled:pointer-events-none',
+    'btn-icon':
+      'inline-flex items-center justify-center w-7 h-7 rounded-ctrl text-ink-secondary hover:text-ink-primary hover:bg-white/[0.06] transition-colors cursor-pointer select-none disabled:opacity-40 disabled:pointer-events-none',
+    'btn-danger-quiet':
+      'inline-flex items-center justify-center gap-1 px-2.5 h-7 rounded-ctrl text-xs font-medium bg-danger-dim border border-danger-line text-danger hover:bg-danger/20 transition-colors cursor-pointer select-none disabled:opacity-40 disabled:pointer-events-none',
+    'tag-chip':
+      'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-tag text-[11px] leading-none font-normal border',
+    'tag-accent':
+      'tag-chip bg-accent-dim border-accent-line text-accent',
+    'tag-neutral':
+      'tag-chip bg-white/[0.03] border-white/[0.07] text-ink-secondary',
   },
 })

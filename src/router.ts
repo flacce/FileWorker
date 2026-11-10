@@ -1,52 +1,54 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
 
-function hasAuth(): boolean {
-  return document.cookie.includes('__auth=')
+export function hasClientAuthCookie(): boolean {
+  return document.cookie.split(';').some((part) => part.trim().startsWith('__auth='))
 }
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    name: 'studio',
-    meta: { title: '文件云工作台' },
-    component: () => import('./pages/StudioPage.vue'),
+    name: 'home',
+    meta: { title: '云端文件匣 · 文件仓库' },
+    component: () => import('./views/BentoWorkspaceView.vue')
   },
   {
     path: '/file',
     name: 'file',
-    meta: { title: '文件中心' },
-    component: () => import('./pages/StudioPage.vue'),
+    meta: { title: '云端文件匣 · 文件仓库' },
+    component: () => import('./views/BentoWorkspaceView.vue')
   },
   {
     path: '/clip',
     name: 'clip',
-    meta: { title: '在线剪贴板' },
-    component: () => import('./pages/StudioPage.vue'),
+    meta: { title: '云端文件匣 · 云剪贴板' },
+    component: () => import('./views/BentoWorkspaceView.vue')
   },
   {
     path: '/login',
     name: 'login',
-    meta: { title: '安全登录' },
-    component: () => import('./pages/LoginPage.vue'),
+    meta: { title: '云端文件匣 · 门禁验证' },
+    component: () => import('./views/AuthGateView.vue')
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/',
-  },
+    redirect: '/'
+  }
 ]
 
 const router = createRouter({
   history: createWebHashHistory(),
-  routes,
+  routes
 })
 
 router.beforeEach((to) => {
   if (typeof to.meta.title === 'string') {
     document.title = to.meta.title
   }
-  const authed = hasAuth()
-  if (!authed && to.path !== '/login') {
-    return { path: '/login', query: { redirect: to.fullPath } }
+  if (to.path !== '/login' && !hasClientAuthCookie()) {
+    return {
+      path: '/login',
+      query: { redirect: to.fullPath }
+    }
   }
   return true
 })

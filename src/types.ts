@@ -1,40 +1,40 @@
-export type Visibility = 'public' | 'private'
-export type StoreType = 'file' | 'text'
+export type VisibilityMode = 'public' | 'private'
+export type StoreKind = 'file' | 'text'
 
-export type FileCategory =
-  | 'all'
-  | 'image'
-  | 'video'
-  | 'audio'
-  | 'document'
-  | 'code'
-  | 'archive'
-  | 'other'
+export type ResourceCategory =
+  'all' | 'clip' | 'image' | 'media' | 'document' | 'code' | 'archive' | 'other'
 
-export type PreviewType =
-  | 'image'
-  | 'video'
-  | 'audio'
-  | 'pdf'
-  | 'markdown'
-  | 'text'
-  | 'none'
+export type RenderKind = 'image' | 'video' | 'audio' | 'pdf' | 'markdown' | 'text' | 'binary'
 
-export interface FileItem {
-  Key?: string
-  Size?: number
-  LastModified?: string | null
+export type ViewLayout = 'list' | 'grid'
+export type SortField = 'time' | 'size' | 'name'
+export type SortDirection = 'asc' | 'desc'
+export type WorkspaceMode = 'file' | 'clip'
+
+export interface StorageObject {
+  Key: string
+  Size: number
+  LastModified: string
   ETag?: string
   httpMetadata?: {
     contentType?: string
     contentDisposition?: string
-    [key: string]: unknown
   }
   customMetadata?: Record<string, string>
 }
 
-export interface ListFilesResult {
-  Contents?: FileItem[]
+export interface RawListResponse {
+  Contents?: Array<{
+    Key?: string
+    Size?: number
+    LastModified?: string | null
+    ETag?: string
+    httpMetadata?: {
+      contentType?: string
+      contentDisposition?: string
+    }
+    customMetadata?: Record<string, string>
+  }>
   IsTruncated?: boolean
   NextContinuationToken?: string
   KeyCount?: number
@@ -44,7 +44,7 @@ export interface ListFilesResult {
   delimitedPrefixes?: string[]
 }
 
-export interface StatsResult {
+export interface BucketMetrics {
   totalCount: number
   isTruncated: boolean
   totalSize: number
@@ -59,14 +59,24 @@ export interface StatsResult {
   }
 }
 
-export interface UploadTask {
+export type TransferState = 'queued' | 'running' | 'done' | 'failed' | 'aborted'
+
+export interface TransferRecord {
   id: string
-  file: File
-  name: string
+  key: string
   size: number
-  progress: number
-  speed: number
-  status: 'pending' | 'uploading' | 'success' | 'error' | 'cancelled'
-  error?: string
-  xhr?: XMLHttpRequest
+  loaded: number
+  percent: number
+  rateBytes: number
+  state: TransferState
+  message?: string
+  cancel?: () => void
+}
+
+export type NoticeTone = 'normal' | 'ok' | 'warn'
+
+export interface NoticeEntry {
+  id: number
+  text: string
+  tone: NoticeTone
 }
