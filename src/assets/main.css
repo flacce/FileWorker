@@ -186,3 +186,22 @@ body,
 .cm-editor.cm-focused {
   outline: none !important;
 }
+
+/* 键盘焦点可见性：仅键盘导航时显示单色描边 */
+:focus-visible {
+  outline: 1.5px solid rgba(45, 212, 191, 0.7);
+  outline-offset: 1px;
+  border-radius: 6px;
+}
+
+/* 尊重系统“减少动态效果”偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

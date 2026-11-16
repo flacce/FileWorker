@@ -70,6 +70,13 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
   const pendingFiles = new Map<string, { file: File; visibility: VisibilityMode }>()
   let runningCount = 0
 
+  // 选择集哈希索引，避免模板中逐行 includes 造成 O(n²) 开销
+  const selectedSet = computed(() => new Set(selectedKeys.value))
+
+  function isSelected(key: string): boolean {
+    return selectedSet.value.has(key)
+  }
+
   const activeObject = computed<StorageObject | null>(() => {
     if (!activeKey.value) return null
     return objects.value.find((item) => item.Key === activeKey.value) ?? null
@@ -137,17 +144,25 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
     })
 
     const dirFactor = prefs.sortDirection === 'asc' ? 1 : -1
-    return [...filtered].sort((a, b) => {
-      if (prefs.sortField === 'size') {
-        return ((a.Size ?? 0) - (b.Size ?? 0)) * dirFactor
-      }
-      if (prefs.sortField === 'name') {
-        return decodeKey(a.Key).localeCompare(decodeKey(b.Key), 'zh-CN') * dirFactor
-      }
-      const ta = a.LastModified ? new Date(a.LastModified).getTime() : 0
-      const tb = b.LastModified ? new Date(b.LastModified).getTime() : 0
-      return (ta - tb) * dirFactor
+    const field = prefs.sortField
+    // 预计算排序键（Schwartzian 变换），避免比较器内重复解码与日期解析
+    const collator = new Intl.Collator('zh-CN')
+    const decorated = filtered.map((item) => ({
+      item,
+      key:
+        field === 'size'
+          ? (item.Size ?? 0)
+          : field === 'name'
+            ? decodeKey(item.Key)
+            : item.LastModified
+              ? new Date(item.LastModified).getTime()
+              : 0
+    }))
+    decorated.sort((a, b) => {
+      if (field === 'name') return collator.compare(a.key as string, b.key as string) * dirFactor
+      return ((a.key as number) - (b.key as number)) * dirFactor
     })
+    return decorated.map((d) => d.item)
   })
 
   const activeTransferCount = computed(
@@ -165,7 +180,8 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
       if (activeKey.value && !objects.value.some((i) => i.Key === activeKey.value)) {
         activeKey.value = null
       }
-      selectedKeys.value = selectedKeys.value.filter((k) => objects.value.some((i) => i.Key === k))
+      const alive = new Set(objects.value.map((i) => i.Key))
+      selectedKeys.value = selectedKeys.value.filter((k) => alive.has(k))
     } finally {
       loading.value = false
     }
@@ -239,7 +255,7 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
   function toggleSelectAllVisible() {
     const visibleKeys = visibleObjects.value.map((i) => i.Key)
     if (!visibleKeys.length) return
-    const allChecked = visibleKeys.every((k) => selectedKeys.value.includes(k))
+    const allChecked = visibleKeys.every((k) => selectedSet.value.has(k))
     if (allChecked) {
       const removeSet = new Set(visibleKeys)
       selectedKeys.value = selectedKeys.value.filter((k) => !removeSet.has(k))
@@ -247,6 +263,12 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
       const merged = new Set([...selectedKeys.value, ...visibleKeys])
       selectedKeys.value = [...merged]
     }
+  }
+
+  // 批量追加勾选（Shift 区间多选）
+  function selectKeys(keys: string[]) {
+    const merged = new Set([...selectedKeys.value, ...keys])
+    selectedKeys.value = [...merged]
   }
 
   function clearSelection() {
@@ -426,6 +448,9 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
     activeCategory,
     searchQuery,
     selectedKeys,
+    selectedSet,
+    isSelected,
+    selectKeys,
     activeKey,
     creatingClip,
     transfers,

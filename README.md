@@ -1,18 +1,19 @@
 # FileWorker
 
-高性能、现代化 **文件云 + 在线剪贴板 + 统一工作台 (Edge Studio)**，基于 **Cloudflare Pages + R2 Binding + Hono v4**。
+高性能、现代化 **文件云 + 在线剪贴板 + 统一工作台 (Edge Studio)**，基于 **Cloudflare Workers + Static Assets + R2 Binding + Hono v5**。
 
 ---
 
 ## 核心特性与架构升级
 
 - **Cloudflare Edge 原生极速后端**：
-  - **Hono v4** 驱动的 Pages Functions，极致精简的高性能路由。
+  - **Hono v5** 驱动的 Workers 模块，极致精简的高性能路由。
   - **HTTP 206 Partial Content (Range)**：音视频毫秒级切片随意拖拽起播，大文件按需传输无需消耗额外内存。
   - **智能 ETag / 304 条件缓存**：秒级验证，0 额外带宽消耗。
   - **Web Crypto 原生鉴权**：支持常数时间密码哈希比对、Session Cookie、`Authorization: Bearer <password>` 及 HMAC-SHA256 临时签名直链生成。
 - **现代化 Edge Studio 统一工作台**：
-  - **全套最新现代化技术栈**：Vite 8 (Rolldown) + Vue 3.5 + Vue Router 5 + Pinia 4 + UnoCSS。
+  - **全套最新现代化技术栈**：Vite 8.3 (Rolldown) + Vue 3.6 RC + Vue Router 5.5 + Pinia 4.1 + UnoCSS 66。
+  - **最新工具链**：Node 26.13.1 + pnpm 12.21.0 + TypeScript 7.1 dev；`tsc` 由 `typescript7` 别名提供，`vue-tsc` 与 ESLint 通过 `typescript` → `@typescript/typescript6` 使用 TS 6 API。
   - **全局智能 Paste Anywhere**：在任意界面按 `Ctrl + V` 即可将截图或文件直接推送到 R2 并自动复制直链。
   - **Master-Detail 实时 Inspector**：点击代码直接在右侧内联 CodeMirror 6 编辑保存并一键渲染 Markdown；点击图片/音视频直接播放/缩放查看。
   - **去模板化极简美学**：中性钛黑哑光质感 + 清新明亮 Sun Amber 琥珀暖黄。
@@ -45,41 +46,51 @@
 ### 1. 创建 Cloudflare R2 存储桶
 在 Cloudflare 控制台创建 R2 Bucket（例如 `my-fileworker-bucket`）。
 
-### 2. 配置 `wrangler.toml`
-将 `wrangler.toml` 中的 `bucket_name` 更改为你的 R2 Bucket 名称：
+### 2. 配置 `wrangler.jsonc`
+将 `wrangler.jsonc` 中的 `bucket_name` 更改为你的 R2 Bucket 名称：
 
-```toml
-name = "fileworker"
-compatibility_date = "2025-12-18"
-compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = "dist"
-
-[[r2_buckets]]
-binding = "BUCKET"
-bucket_name = "my-fileworker-bucket"
-preview_bucket_name = "my-fileworker-bucket"
+```jsonc
+{
+  "name": "fileworker",
+  "main": "functions/[[path]].ts",
+  "compatibility_date": "2026-11-16",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "my-fileworker-bucket",
+      "preview_bucket_name": "my-fileworker-bucket"
+    }
+  ]
+}
 ```
 
 ### 3. 配置环境变量
-在 Cloudflare Pages 设置中的 **Environment variables** 添加：
+在 Cloudflare Workers 设置中的 **Variables and Secrets** 添加：
 - `PASSWORD`：访问密码（例如 `your-secret-password`）
 - 或 `PASSWORD_HASH`：密码的 SHA-256 哈希值（可通过 `echo -n "your-password" | sha256sum` 生成）
 
 #### (可选) 开启大文件 R2 S3 直传（突破 Worker 100MB 限制）：
-如果需要上传超过 100MB 乃至数 GB 的大文件，可以在 Cloudflare 控制台申请 R2 API Token（具有读写权限），并在 Pages 环境变量中配置：
+如果需要上传超过 100MB 乃至数 GB 的大文件，可以在 Cloudflare 控制台申请 R2 API Token（具有读写权限），并在 Worker 环境变量中配置：
 - `R2_ACCOUNT_ID`：你的 Cloudflare 账户 ID
 - `R2_ACCESS_KEY_ID`：R2 API 访问密钥 ID
 - `R2_SECRET_ACCESS_KEY`：R2 API 机密访问密钥
 - `R2_BUCKET_NAME`：R2 存储桶名（如不填默认使用 `fff`）
-> 注：未配置上述 S3 变量时，系统会自动平滑降级走原生 Pages Worker 管道上传。
+> 注：未配置上述 S3 变量时，系统会自动平滑降级走原生 Worker 管道上传。
 
 ### 4. 构建与部署
+
+> 工具链要求：Node.js `>=26.13.1`、pnpm `12.x`。
 
 ```bash
 # 安装依赖
 pnpm install
 
-# 部署到 Cloudflare Pages
+# 部署到 Cloudflare Workers
 pnpm run deploy
 ```
 
@@ -94,7 +105,7 @@ cp .dev.vars.example .dev.vars
 # 启动前端热重载
 pnpm dev
 
-# 在本地完整模拟 Cloudflare R2 与 Functions 边缘运行环境
+# 在本地完整模拟 Cloudflare R2 与 Workers 边缘运行环境
 pnpm preview
 ```
 

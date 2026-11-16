@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { SortField, StorageObject } from '@/types'
 import { issueSignedUrl } from '@/api'
 import { usePrefsStore, useWorkspaceStore } from '@/store/workspace'
@@ -48,8 +48,64 @@ const breadcrumbs = computed(() => {
 
 const allVisibleSelected = computed(() => {
   if (!store.visibleObjects.length) return false
-  return store.visibleObjects.every((item) => store.selectedKeys.includes(item.Key))
+  return store.visibleObjects.every((item) => store.isSelected(item.Key))
 })
+
+const scrollHostEl = ref<HTMLElement | null>(null)
+const lastToggledKey = ref<string | null>(null)
+
+// 勾选：支持 Shift 区间多选
+function handleToggle(item: StorageObject, ev: MouseEvent) {
+  const list = store.visibleObjects
+  if (ev.shiftKey && lastToggledKey.value) {
+    const from = list.findIndex((i) => i.Key === lastToggledKey.value)
+    const to = list.findIndex((i) => i.Key === item.Key)
+    if (from >= 0 && to >= 0) {
+      const [lo, hi] = from < to ? [from, to] : [to, from]
+      store.selectKeys(list.slice(lo, hi + 1).map((i) => i.Key))
+      lastToggledKey.value = item.Key
+      return
+    }
+  }
+  store.toggleSelection(item.Key)
+  lastToggledKey.value = item.Key
+}
+
+// 键盘浏览：↑/↓ 切换检视对象，Enter 打开检视面板，空格切换勾选
+function moveActive(step: number) {
+  const list = store.visibleObjects
+  if (!list.length) return
+  const idx = list.findIndex((i) => i.Key === store.activeKey)
+  const next =
+    idx < 0 ? (step > 0 ? 0 : list.length - 1) : Math.min(list.length - 1, Math.max(0, idx + step))
+  const target = list[next]
+  if (target) store.inspectObject(target.Key)
+}
+
+function handleKeyNav(ev: KeyboardEvent) {
+  if (ev.target !== ev.currentTarget) return
+  if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+    ev.preventDefault()
+    moveActive(ev.key === 'ArrowDown' ? 1 : -1)
+  } else if (ev.key === 'Enter' && store.activeKey) {
+    ev.preventDefault()
+    emit('openInspector')
+  } else if (ev.key === ' ' && store.activeKey) {
+    ev.preventDefault()
+    store.toggleSelection(store.activeKey)
+    lastToggledKey.value = store.activeKey
+  }
+}
+
+watch(
+  () => store.activeKey,
+  async (key) => {
+    if (!key) return
+    await nextTick()
+    const el = scrollHostEl.value?.querySelector<HTMLElement>(`[data-key="${CSS.escape(key)}"]`)
+    el?.scrollIntoView({ block: 'nearest' })
+  }
+)
 
 function focusSearch() {
   searchInputEl.value?.focus()
@@ -386,7 +442,13 @@ function resetRootView() {
     </div>
 
     <!-- 主内容滚动区 -->
-    <div class="flex-1 min-h-0 overflow-y-auto">
+    <div
+      ref="scrollHostEl"
+      class="flex-1 min-h-0 overflow-y-auto outline-none"
+      tabindex="0"
+      aria-label="资源列表（方向键切换，空格勾选，Enter 打开检视）"
+      @keydown="handleKeyNav"
+    >
       <!-- 初次加载态 -->
       <div
         v-if="store.loading && store.objects.length === 0"
@@ -458,11 +520,12 @@ function resetRootView() {
         <div
           v-for="item in store.visibleObjects"
           :key="item.Key"
+          :data-key="item.Key"
           class="group relative px-3 h-10 grid grid-cols-[24px_1fr_auto] sm:grid-cols-[24px_1fr_68px_92px_96px] md:grid-cols-[24px_1fr_68px_84px_92px_96px] items-center gap-2 cursor-pointer transition-colors"
           :class="
             store.activeKey === item.Key
               ? 'bg-white/[0.055]'
-              : store.selectedKeys.includes(item.Key)
+              : store.isSelected(item.Key)
                 ? 'bg-accent/[0.05]'
                 : 'hover:bg-white/[0.028]'
           "
@@ -479,13 +542,13 @@ function resetRootView() {
             type="button"
             class="w-4 h-4 rounded-[3px] border flex items-center justify-center cursor-pointer bg-transparent p-0 transition-colors"
             :class="
-              store.selectedKeys.includes(item.Key)
+              store.isSelected(item.Key)
                 ? 'border-accent bg-accent text-[#061210]'
                 : 'border-white/[0.14] opacity-60 group-hover:opacity-100 hover:border-white/[0.35]'
             "
-            @click.stop="store.toggleSelection(item.Key)"
+            @click.stop="handleToggle(item, $event)"
           >
-            <span v-if="store.selectedKeys.includes(item.Key)" class="i-mdi-check text-[11px]" />
+            <span v-if="store.isSelected(item.Key)" class="i-mdi-check text-[11px]" />
           </button>
 
           <!-- 图标与文件名称 -->
@@ -590,11 +653,12 @@ function resetRootView() {
           <div
             v-for="item in store.visibleObjects"
             :key="item.Key"
+            :data-key="item.Key"
             class="group rounded-ctrl border overflow-hidden flex flex-col cursor-pointer transition-all bg-bento-raised/70"
             :class="
               store.activeKey === item.Key
                 ? 'border-accent bg-bento-hover'
-                : store.selectedKeys.includes(item.Key)
+                : store.isSelected(item.Key)
                   ? 'border-accent-line'
                   : 'border-white/[0.06] hover:border-white/[0.14]'
             "
@@ -609,7 +673,8 @@ function resetRootView() {
                 :src="buildObjectPath(item.Key)"
                 :alt="displayTitle(item)"
                 loading="lazy"
-                class="w-full h-full object-cover"
+                decoding="async"
+                class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
               />
               <div v-else class="flex flex-col items-center gap-1.5">
                 <span :class="iconForObject(item)" class="text-2xl text-ink-secondary" />
@@ -621,11 +686,11 @@ function resetRootView() {
                 type="button"
                 class="absolute top-2 left-2 w-4.5 h-4.5 rounded-[3px] border flex items-center justify-center cursor-pointer p-0 transition-opacity"
                 :class="
-                  store.selectedKeys.includes(item.Key)
+                  store.isSelected(item.Key)
                     ? 'border-accent bg-accent text-[#061210] opacity-100'
                     : 'border-white/25 bg-bento-canvas/80 text-transparent opacity-0 group-hover:opacity-100'
                 "
-                @click.stop="store.toggleSelection(item.Key)"
+                @click.stop="handleToggle(item, $event)"
               >
                 <span class="i-mdi-check text-xs" />
               </button>

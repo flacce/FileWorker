@@ -1,0 +1,15 @@
+packages:
+  - "."
+
+# TypeScript split: `typescript` is the TS 6 API compatibility package used by
+# vue-tsc and typescript-eslint; `typescript7` is the TS 7 compiler run by the
+# type-check script. See package.json devDependencies.
+
+# Allow only the dependency build scripts this project actually needs.
+allowBuilds:
+  esbuild: true
+  workerd: true
+
+# This project intentionally tracks same-day releases (daily @cloudflare/workers-types
+# and TypeScript dev builds), so disable pnpm 12's release-age quarantine.
+minimumReleaseAge: 0

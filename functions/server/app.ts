@@ -27,7 +27,7 @@ app.use(
   })
 )
 
-// 前端入口与构建产物交给 Pages 静态资源服务（_routes.json 已排除，此处兜底本地调试）
+// 前端入口与构建产物由 Workers 静态资源层直接提供，此处仅作本地兜底
 app.on(['GET', 'HEAD'], STATIC_ENTRIES, (c) =>
   c.env.ASSETS ? c.env.ASSETS.fetch(c.req.raw) : c.notFound()
 )
@@ -40,7 +40,8 @@ app.route('/', objects)
 
 app.notFound((c) => c.text('未找到资源', 404))
 
-app.onError((err, c) => {
+app.onError((c) => {
+  const err = c.error ?? new Error('未知错误')
   if (err instanceof HTTPException) return err.getResponse()
   console.error('[fileworker]', err)
   return c.text(`服务器异常：${err.message || '未知错误'}`, 500)
