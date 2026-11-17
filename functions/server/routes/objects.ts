@@ -10,6 +10,7 @@ import {
 } from '../core/metadata'
 import { shouldDownload } from '../core/mime'
 import { badRequest } from '../core/request'
+import { invalidateBucketMetrics } from '../core/metrics-cache'
 import { isAuthorized, requireAuth } from '../security/guard'
 import {
   fetchObject,
@@ -119,6 +120,7 @@ objects.put('/:key{.+}', requireAuth, async (c) => {
   const customMetadata = pickStoreHeaders(c.req.raw.headers)
   const contentType = resolveContentType(key, customMetadata, c.req.header('content-type'))
   await c.env.BUCKET.put(key, body, { customMetadata, httpMetadata: { contentType } })
+  invalidateBucketMetrics()
   return c.text('OK')
 })
 
@@ -142,6 +144,7 @@ objects.patch('/:key{.+}', requireAuth, async (c) => {
 objects.delete('/:key{.+}', requireAuth, async (c) => {
   const ref = requireKey(c)
   await c.env.BUCKET.delete(eraseCandidates(ref))
+  invalidateBucketMetrics()
   return c.text('OK')
 })
 

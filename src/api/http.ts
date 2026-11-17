@@ -28,11 +28,11 @@ function redirectToGate() {
   }
 }
 
-export async function httpJson<T>(
+async function fetchWithSession(
   url: string,
   init: RequestInit = {},
   silentAuth = false
-): Promise<T> {
+): Promise<Response> {
   const headers = new Headers(init.headers)
   if (!headers.has('Accept')) {
     headers.set('Accept', 'application/json, text/plain, */*')
@@ -61,6 +61,16 @@ export async function httpJson<T>(
     throw new HttpStatusError('未授权访问', 401)
   }
 
+  return response
+}
+
+export async function httpJson<T>(
+  url: string,
+  init: RequestInit = {},
+  silentAuth = false
+): Promise<T> {
+  const response = await fetchWithSession(url, init, silentAuth)
+
   if (!response.ok) {
     let reason = `请求异常（状态码 ${response.status}）`
     try {
@@ -87,6 +97,22 @@ export async function httpJson<T>(
     return (await response.json()) as T
   }
   return (await response.text()) as unknown as T
+}
+
+export async function httpText(url: string, init: RequestInit = {}): Promise<string> {
+  const response = await fetchWithSession(url, init)
+  if (!response.ok) {
+    let reason = `请求异常（状态码 ${response.status}）`
+    try {
+      const raw = await response.text()
+      if (raw) reason = raw
+    } catch {
+      // 忽略响应体解析失败
+    }
+    notify(reason.slice(0, 120), 'warn')
+    throw new HttpStatusError(reason, response.status)
+  }
+  return await response.text()
 }
 
 export function putBinaryStream(

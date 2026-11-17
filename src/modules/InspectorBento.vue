@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { VisibilityMode } from '@/types'
-import { issueSignedUrl, probeObjectMetadata, readObjectText, writeTextObject } from '@/api'
+import { issueSignedUrl, readObjectText, writeTextObject } from '@/api'
 import { usePrefsStore, useWorkspaceStore } from '@/store/workspace'
 import {
   buildObjectPath,
@@ -33,6 +33,7 @@ const clipPlaceholderKey = ref(generateShortKey(4))
 const clipBody = ref('')
 const clipVisibility = ref<VisibilityMode>(prefs.defaultVisibility)
 const clipSaving = ref(false)
+const clipSavingAction = ref<'save' | 'copy'>('save')
 const clipWrap = ref(true)
 
 // ── 对象检视与编辑状态 ─────────────────────────────
@@ -56,6 +57,31 @@ const confirmDelete = ref(false)
 const visibilityBusy = ref(false)
 
 let textAbortCtrl: AbortController | null = null
+let markdownRenderToken = 0
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => {
+    const entities: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }
+    return entities[char]!
+  })
+}
+
+function isSafeMarkdownUrl(value: string, image = false): boolean {
+  try {
+    const protocol = new URL(value, window.location.origin).protocol
+    return image
+      ? protocol === 'http:' || protocol === 'https:'
+      : protocol === 'http:' || protocol === 'https:' || protocol === 'mailto:'
+  } catch {
+    return false
+  }
+}
 
 const currentObj = computed(() => store.activeObject)
 const currentKind = computed(() =>
@@ -70,7 +96,8 @@ const isTextModified = computed(
 )
 
 const previewClipUrl = computed(() => {
-  const k = clipKeyInput.value.trim().replace(/^\/+/, '') || clipPlaceholderKey.value
+  const key = clipKeyInput.value.trim().replace(/^\/+/, '') || clipPlaceholderKey.value
+  const k = `${store.currentPrefix}${key}`
   return buildPublicUrl(k)
 })
 
@@ -86,15 +113,36 @@ function cancelPendingRead() {
     textAbortCtrl.abort()
     textAbortCtrl = null
   }
+  textLoading.value = false
 }
 
 async function compileMarkdown(source: string) {
+  const token = ++markdownRenderToken
   try {
-    const { marked } = await import('marked')
-    const out = await marked.parse(source)
-    renderedHtml.value = out
+    const { Marked } = await import('marked')
+    const out = await new Marked({
+      renderer: {
+        html({ text }) {
+          return escapeHtml(text)
+        },
+        link({ href, title, tokens }) {
+          if (!isSafeMarkdownUrl(href)) return this.parser.parseInline(tokens)
+          const content = this.parser.parseInline(tokens)
+          const titleAttr = title ? ` title="${escapeHtml(title)}"` : ''
+          return `<a href="${escapeHtml(href)}"${titleAttr} rel="noopener noreferrer">${content}</a>`
+        },
+        image({ href, title, text }) {
+          if (!isSafeMarkdownUrl(href, true)) return escapeHtml(text)
+          const titleAttr = title ? ` title="${escapeHtml(title)}"` : ''
+          return `<img src="${escapeHtml(href)}" alt="${escapeHtml(text)}"${titleAttr}>`
+        }
+      }
+    }).parse(source)
+    if (token === markdownRenderToken) renderedHtml.value = out
   } catch {
-    renderedHtml.value = '<p>文档排版渲染失败，请切换至源码视图查看。</p>'
+    if (token === markdownRenderToken) {
+      renderedHtml.value = '<p>文档排版渲染失败，请切换至源码视图查看。</p>'
+    }
   }
 }
 
@@ -116,17 +164,15 @@ async function fetchInspectorText(force = false) {
   textAbortCtrl = ctrl
 
   try {
-    const raw = await readObjectText(obj.Key, ctrl.signal)
+    const raw = await readObjectText(obj.Key, ctrl.signal, resolveVisibility(obj) === 'public')
     if (ctrl.signal.aborted) return
     originText.value = raw
     draftText.value = raw
     if (currentKind.value === 'markdown') {
       await compileMarkdown(raw)
     }
-  } catch (err: unknown) {
-    if ((err as Error)?.name !== 'AbortError') {
-      notify('拉取文本内容失败', 'warn')
-    }
+  } catch {
+    // 请求层负责提示读取失败，主动取消时保持静默
   } finally {
     if (textAbortCtrl === ctrl) {
       textLoading.value = false
@@ -148,6 +194,7 @@ watch(
   () => currentObj.value?.Key,
   (nextKey) => {
     cancelPendingRead()
+    markdownRenderToken++
     renaming.value = false
     sharePanelOpen.value = false
     confirmDelete.value = false
@@ -160,15 +207,6 @@ watch(
 
     if (!nextKey || !currentObj.value) return
     const targetObj = currentObj.value
-    const headCtrl = new AbortController()
-    void probeObjectMetadata(nextKey, headCtrl.signal).then((meta) => {
-      if (meta && currentObj.value?.Key === targetObj.Key) {
-        targetObj.customMetadata = {
-          ...(targetObj.customMetadata ?? {}),
-          ...meta
-        }
-      }
-    })
     const kind = resolveRenderKind(targetObj)
     if (kind === 'text' || kind === 'markdown') {
       void fetchInspectorText(false)
@@ -189,7 +227,23 @@ function rollShortKey() {
   clipKeyInput.value = code
 }
 
-async function publishClip() {
+async function copyPreviewClipUrl() {
+  if (clipVisibility.value === 'private') {
+    notify('私密片段请先保存，保存后才能生成临时访问链接', 'normal')
+    return
+  }
+
+  const url = previewClipUrl.value
+  const notice = '已复制直链预览地址'
+  try {
+    const ok = await writeClipboard(url)
+    if (ok) notify(notice, 'ok')
+  } catch {
+    // 请求层已负责提示错误
+  }
+}
+
+async function publishClip(copyLink = true) {
   if (clipSaving.value) return
   if (!clipBody.value.trim()) {
     notify('请先输入或粘贴剪贴板文本内容', 'warn')
@@ -201,19 +255,23 @@ async function publishClip() {
     (clipKeyInput.value.trim().replace(/^\/+/, '') || clipPlaceholderKey.value)
 
   clipSaving.value = true
+  clipSavingAction.value = copyLink ? 'copy' : 'save'
   try {
     await writeTextObject(finalKey, clipBody.value, clipVisibility.value, 'text')
-    let linkToCopy = buildPublicUrl(finalKey)
-    if (clipVisibility.value === 'private') {
-      const signed = await issueSignedUrl(finalKey, 86400)
-      linkToCopy = signed.signedUrl
+    if (copyLink) {
+      let linkToCopy = buildPublicUrl(finalKey)
+      if (clipVisibility.value === 'private') {
+        const signed = await issueSignedUrl(finalKey, 86400)
+        linkToCopy = signed.signedUrl
+      }
+      const copied = await writeClipboard(linkToCopy)
+      notify(copied ? '云剪贴板已保存并复制访问直链' : '云剪贴板已保存至云端', 'ok')
+    } else {
+      notify('云剪贴板已保存至云端', 'ok')
     }
-    const copied = await writeClipboard(linkToCopy)
-    notify(copied ? '云剪贴板已保存并复制访问直链' : '云剪贴板已保存至云端', 'ok')
-
     clipKeyInput.value = ''
     clipBody.value = ''
-    await store.bootstrap()
+    await store.bootstrap(true)
     const saved = store.objects.find((i) => decodeKey(i.Key) === decodeKey(finalKey))
     if (saved) {
       if (store.activeCategory !== 'all' && classifyResource(saved) !== store.activeCategory) {
@@ -223,6 +281,8 @@ async function publishClip() {
     } else {
       store.creatingClip = false
     }
+  } catch {
+    // 具体失败原因由 api 层统一提示，此处仅避免未捕获的 Promise 拒绝
   } finally {
     clipSaving.value = false
   }
@@ -334,6 +394,7 @@ function closeInspector() {
 
 onBeforeUnmount(() => {
   cancelPendingRead()
+  markdownRenderToken++
 })
 </script>
 
@@ -350,6 +411,21 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="flex items-center gap-1">
+          <button
+            type="button"
+            class="btn-icon w-7 h-7"
+            title="保存剪贴板（Ctrl/⌘ + S）"
+            aria-label="保存剪贴板"
+            :disabled="clipSaving"
+            @click="publishClip(false)"
+          >
+            <span
+              v-if="clipSaving && clipSavingAction === 'save'"
+              class="i-mdi-loading animate-spin text-sm"
+              aria-hidden="true"
+            />
+            <span v-else class="i-mdi-content-save-outline text-sm" aria-hidden="true" />
+          </button>
           <button
             type="button"
             class="btn-icon w-7 h-7 hidden lg:inline-flex"
@@ -414,9 +490,18 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="flex items-center justify-between text-[11px] text-ink-muted gap-2">
-          <span class="truncate font-mono" :title="previewClipUrl"
-            >直链预览：{{ previewClipUrl }}</span
+          <button
+            type="button"
+            class="truncate font-mono bg-transparent border-none cursor-pointer p-0 text-left text-ink-muted hover:text-accent transition-colors min-w-0"
+            :title="
+              clipVisibility === 'private'
+                ? '私密片段请先保存，保存后可生成临时访问链接'
+                : `点击复制直链：${previewClipUrl}`
+            "
+            @click="copyPreviewClipUrl"
           >
+            {{ clipVisibility === 'private' ? '保存后访问' : '直链预览' }}：{{ previewClipUrl }}
+          </button>
           <button
             type="button"
             class="text-[11px] text-ink-secondary hover:text-ink-primary bg-transparent border-none cursor-pointer shrink-0 p-0"
@@ -434,7 +519,7 @@ onBeforeUnmount(() => {
           :filename="clipKeyInput || 'snippet.txt'"
           :line-wrap="clipWrap"
           placeholder-text="在此键入文本、配置、脚本或笔记内容，支持按保存组合键直接发布…"
-          @save="publishClip"
+          @save="publishClip(false)"
         />
       </div>
 
@@ -443,17 +528,36 @@ onBeforeUnmount(() => {
         class="p-3 border-t border-white/[0.06] flex items-center justify-between gap-2 bg-bento-raised/30 shrink-0"
       >
         <span class="text-[11px] text-ink-muted font-mono"> {{ clipBody.length }} 字符 </span>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1.5 flex-wrap justify-end">
           <button type="button" class="btn-quiet h-8" @click="clipBody = ''">清空内容</button>
+          <button
+            type="button"
+            class="btn-surface h-8 px-3"
+            :disabled="clipSaving"
+            title="仅保存到云端，不复制直链（Ctrl/⌘ + S）"
+            @click="publishClip(false)"
+          >
+            <span
+              v-if="clipSaving && clipSavingAction === 'save'"
+              class="i-mdi-loading animate-spin text-xs"
+            />
+            <span v-else class="i-mdi-content-save-outline text-sm" />
+            <span>{{ clipSaving && clipSavingAction === 'save' ? '保存中…' : '保存' }}</span>
+          </button>
           <button
             type="button"
             class="btn-accent h-8 px-3.5"
             :disabled="clipSaving"
-            @click="publishClip"
+            @click="publishClip(true)"
           >
-            <span v-if="clipSaving" class="i-mdi-loading animate-spin text-xs" />
+            <span
+              v-if="clipSaving && clipSavingAction === 'copy'"
+              class="i-mdi-loading animate-spin text-xs"
+            />
             <span v-else class="i-mdi-cloud-upload-outline text-sm" />
-            <span>{{ clipSaving ? '正在上云…' : '保存并复制直链' }}</span>
+            <span>{{
+              clipSaving && clipSavingAction === 'copy' ? '正在上云…' : '保存并复制直链'
+            }}</span>
           </button>
         </div>
       </footer>
@@ -570,13 +674,22 @@ onBeforeUnmount(() => {
             复制全文
           </button>
           <button
-            v-if="isTextModified"
             type="button"
-            class="btn-accent h-6 px-2 text-[11px]"
-            :disabled="savingEdit"
+            class="h-6 px-2 text-[11px]"
+            :class="isTextModified ? 'btn-accent' : 'btn-quiet'"
+            :disabled="savingEdit || textLoading || textOversized || !isTextModified"
+            :title="
+              textOversized
+                ? '内容未载入，无法保存'
+                : isTextModified
+                  ? '保存当前改动到云端（Ctrl/⌘ + S）'
+                  : '当前内容与云端一致，无需保存'
+            "
             @click="saveModifiedText"
           >
-            {{ savingEdit ? '保存中…' : '保存改动' }}
+            <span v-if="savingEdit" class="i-mdi-loading animate-spin text-xs" />
+            <span v-else class="i-mdi-content-save-outline text-xs" />
+            <span>{{ savingEdit ? '保存中…' : '保存' }}</span>
           </button>
         </div>
       </div>
@@ -798,13 +911,48 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
+        <!-- 直链地址条：地址与复制入口保持高对比显示 -->
+        <div class="bento-subbox p-2.5 space-y-1.5">
+          <div class="flex items-center gap-1.5 text-[11px]">
+            <span
+              :class="
+                resolveVisibility(currentObj) === 'public'
+                  ? 'i-mdi-link-variant text-accent'
+                  : 'i-mdi-lock-outline text-ink-secondary'
+              "
+              class="text-sm"
+            />
+            <span class="text-ink-primary font-medium">{{
+              resolveVisibility(currentObj) === 'public' ? '公开直链' : '私密访问'
+            }}</span>
+            <span v-if="resolveVisibility(currentObj) === 'public'" class="tag-accent">可复制</span>
+          </div>
+          <template v-if="resolveVisibility(currentObj) === 'public'">
+            <div class="flex items-stretch gap-2 min-w-0">
+              <code
+                class="flex-1 min-w-0 overflow-x-auto whitespace-nowrap select-text rounded-ctrl border border-white/[0.1] bg-[#090b0e] px-2.5 py-1.5 font-mono text-xs text-ink-primary"
+                :title="buildPublicUrl(currentObj.Key)"
+              >
+                {{ buildPublicUrl(currentObj.Key) }}
+              </code>
+              <button
+                type="button"
+                class="btn-accent h-8 px-3 shrink-0 text-white"
+                title="复制此直链到剪贴板"
+                @click="copyDirectUrl"
+              >
+                <span class="i-mdi-content-copy text-sm" />
+                <span>复制直链</span>
+              </button>
+            </div>
+          </template>
+          <span v-else class="text-[11px] text-ink-secondary">
+            私密受控对象，请使用下方限时分享获取访问链接。
+          </span>
+        </div>
+
         <!-- 主分发操作列 -->
         <div class="flex items-center gap-1.5">
-          <button type="button" class="btn-accent flex-1 h-8" @click="copyDirectUrl">
-            <span class="i-mdi-content-copy text-xs" />
-            <span>复制直链</span>
-          </button>
-
           <button
             type="button"
             class="btn-surface h-8 px-2.5"

@@ -41,7 +41,8 @@ const totalCountDisplay = computed(() => {
 
 const totalSizeDisplay = computed(() => {
   if (store.metrics) {
-    return formatFileSize(store.metrics.totalSize)
+    const prefix = store.metrics.isTruncated ? '≥' : ''
+    return `${prefix}${formatFileSize(store.metrics.totalSize)}`
   }
   const sum = store.objects.reduce((acc, item) => acc + (item.Size || 0), 0)
   return formatFileSize(sum)

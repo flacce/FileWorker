@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import type { AppEnv } from '../bindings'
 import { eraseCandidates, objectRefFromInput, readCandidates } from '../core/keys'
 import { asText, badRequest, readJsonBody } from '../core/request'
+import { invalidateBucketMetrics } from '../core/metrics-cache'
 import { requireAuth } from '../security/guard'
 import { locateObject } from '../storage/bucket'
 
@@ -28,6 +29,7 @@ maintenance.post('/rename', requireAuth, async (c) => {
     customMetadata: source.customMetadata
   })
   await c.env.BUCKET.delete(source.key)
+  invalidateBucketMetrics()
   return c.text('OK')
 })
 
@@ -40,6 +42,7 @@ maintenance.post('/batch-delete', requireAuth, async (c) => {
   for (let i = 0; i < targets.length; i += DELETE_CHUNK) {
     await c.env.BUCKET.delete(targets.slice(i, i + DELETE_CHUNK))
   }
+  invalidateBucketMetrics()
   return c.json({ ok: true, count: keys.length })
 })
 

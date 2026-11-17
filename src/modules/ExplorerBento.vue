@@ -128,6 +128,30 @@ function handleRowClick(item: StorageObject) {
   emit('openInspector')
 }
 
+function handleRowKeydown(item: StorageObject, ev: KeyboardEvent) {
+  if (ev.target !== ev.currentTarget) return
+  if (ev.key === 'Enter' || ev.key === ' ') {
+    ev.preventDefault()
+    handleRowClick(item)
+  }
+}
+
+function handleFolderKeydown(folder: string, ev: KeyboardEvent) {
+  if (ev.target !== ev.currentTarget) return
+  if (ev.key === 'Enter' || ev.key === ' ') {
+    ev.preventDefault()
+    store.enterFolder(folder)
+  }
+}
+
+function handleNavigateUpKeydown(ev: KeyboardEvent) {
+  if (ev.target !== ev.currentTarget) return
+  if (ev.key === 'Enter' || ev.key === ' ') {
+    ev.preventDefault()
+    store.navigateUp()
+  }
+}
+
 function handleNewClip() {
   store.openClipCreator()
   emit('openInspector')
@@ -493,6 +517,9 @@ function resetRootView() {
         <div
           v-if="store.currentPrefix && !store.searchQuery && store.activeCategory === 'all'"
           class="px-3 h-9 flex items-center gap-2.5 text-xs text-ink-secondary hover:bg-white/[0.025] cursor-pointer transition-colors"
+          tabindex="0"
+          role="button"
+          @keydown="handleNavigateUpKeydown"
           @click="store.navigateUp()"
         >
           <span class="i-mdi-arrow-up-left text-sm text-ink-muted ml-1" />
@@ -504,6 +531,10 @@ function resetRootView() {
           v-for="folder in store.virtualFolders"
           :key="folder"
           class="px-3 h-9.5 grid grid-cols-[24px_1fr_auto] items-center gap-2 hover:bg-white/[0.03] cursor-pointer transition-colors"
+          tabindex="0"
+          role="button"
+          :aria-label="`打开目录 ${folder.slice(store.currentPrefix.length).replace(/\/$/, '')}`"
+          @keydown="handleFolderKeydown(folder, $event)"
           @click="store.enterFolder(folder)"
         >
           <span class="i-mdi-folder-outline text-accent/80 text-base ml-0.5" />
@@ -521,7 +552,10 @@ function resetRootView() {
           v-for="item in store.visibleObjects"
           :key="item.Key"
           :data-key="item.Key"
-          class="group relative px-3 h-10 grid grid-cols-[24px_1fr_auto] sm:grid-cols-[24px_1fr_68px_92px_96px] md:grid-cols-[24px_1fr_68px_84px_92px_96px] items-center gap-2 cursor-pointer transition-colors"
+          class="object-list-row group relative px-3 h-10 grid grid-cols-[24px_1fr_auto] sm:grid-cols-[24px_1fr_68px_92px_96px] md:grid-cols-[24px_1fr_68px_84px_92px_96px] items-center gap-2 cursor-pointer transition-colors"
+          tabindex="0"
+          role="group"
+          :aria-label="`资源对象：${displayTitle(item)}，按 Enter 或空格打开检视`"
           :class="
             store.activeKey === item.Key
               ? 'bg-white/[0.055]'
@@ -530,6 +564,7 @@ function resetRootView() {
                 : 'hover:bg-white/[0.028]'
           "
           @click="handleRowClick(item)"
+          @keydown="handleRowKeydown(item, $event)"
         >
           <!-- 当前检视态单色左饰线 -->
           <span
@@ -654,7 +689,10 @@ function resetRootView() {
             v-for="item in store.visibleObjects"
             :key="item.Key"
             :data-key="item.Key"
-            class="group rounded-ctrl border overflow-hidden flex flex-col cursor-pointer transition-all bg-bento-raised/70"
+            class="object-grid-card group rounded-ctrl border overflow-hidden flex flex-col cursor-pointer transition-all bg-bento-raised/70"
+            tabindex="0"
+            role="group"
+            :aria-label="`资源对象：${displayTitle(item)}，按 Enter 或空格打开检视`"
             :class="
               store.activeKey === item.Key
                 ? 'border-accent bg-bento-hover'
@@ -663,6 +701,7 @@ function resetRootView() {
                   : 'border-white/[0.06] hover:border-white/[0.14]'
             "
             @click="handleRowClick(item)"
+            @keydown="handleRowKeydown(item, $event)"
           >
             <!-- 缩略图舞台 -->
             <div

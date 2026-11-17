@@ -1,11 +1,49 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  defineAsyncComponent,
+  defineComponent,
+  h,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch
+} from 'vue'
 import { useRoute } from 'vue-router'
 import { usePrefsStore, useWorkspaceStore } from '@/store/workspace'
 import SidebarRailBento from '@/modules/SidebarRailBento.vue'
 import ExplorerBento from '@/modules/ExplorerBento.vue'
-import InspectorBento from '@/modules/InspectorBento.vue'
 import TransferDockBento from '@/modules/TransferDockBento.vue'
+
+const InspectorLoading = defineComponent({
+  setup: () => () =>
+    h(
+      'div',
+      {
+        class: 'bento-box h-full min-h-0 flex items-center justify-center text-xs text-ink-muted',
+        role: 'status'
+      },
+      '正在加载检视面板…'
+    )
+})
+
+const InspectorLoadError = defineComponent({
+  setup: () => () =>
+    h(
+      'div',
+      {
+        class: 'bento-box h-full min-h-0 flex items-center justify-center text-xs text-danger',
+        role: 'alert'
+      },
+      '检视面板加载失败，请刷新页面重试。'
+    )
+})
+
+const InspectorBento = defineAsyncComponent({
+  loader: () => import('@/modules/InspectorBento.vue'),
+  loadingComponent: InspectorLoading,
+  errorComponent: InspectorLoadError,
+  delay: 120
+})
 
 type MobileTab = 'nav' | 'explorer' | 'inspector'
 
@@ -15,7 +53,24 @@ const prefs = usePrefsStore()
 
 const explorerRef = ref<InstanceType<typeof ExplorerBento> | null>(null)
 const mobilePane = ref<MobileTab>('explorer')
+const isDesktopViewport = ref(
+  typeof window === 'undefined' || window.matchMedia('(min-width: 1024px)').matches
+)
+const inspectorLoaded = ref(isDesktopViewport.value)
 const globalDragDepth = ref(0)
+let viewportMediaQuery: MediaQueryList | null = null
+
+watch(
+  mobilePane,
+  (pane) => {
+    if (pane === 'inspector') inspectorLoaded.value = true
+  },
+  { immediate: true }
+)
+
+function onViewportChange(ev: MediaQueryListEvent) {
+  isDesktopViewport.value = ev.matches
+}
 
 function syncRoutePosture(path: string) {
   if (path === '/clip') {
@@ -129,12 +184,15 @@ function onWindowDrop(ev: DragEvent) {
 }
 
 onMounted(() => {
+  viewportMediaQuery = window.matchMedia('(min-width: 1024px)')
+  viewportMediaQuery.addEventListener('change', onViewportChange)
   void store.bootstrap()
   window.addEventListener('keydown', handleGlobalKeydown)
   window.addEventListener('paste', handleGlobalPaste)
 })
 
 onBeforeUnmount(() => {
+  viewportMediaQuery?.removeEventListener('change', onViewportChange)
   window.removeEventListener('keydown', handleGlobalKeydown)
   window.removeEventListener('paste', handleGlobalPaste)
 })
@@ -158,25 +216,48 @@ onBeforeUnmount(() => {
       "
     >
       <!-- 左翼导航与容量投递便当列 -->
-      <div class="h-full min-h-0 lg:block" :class="mobilePane === 'nav' ? 'block' : 'hidden'">
+      <div
+        role="region"
+        aria-label="分类与投递"
+        class="h-full min-h-0 lg:block"
+        :class="mobilePane === 'nav' ? 'block' : 'hidden'"
+      >
         <SidebarRailBento @pick-complete="mobilePane = 'explorer'" />
       </div>
 
       <!-- 中枢资源主列表便当盒 -->
-      <div class="h-full min-h-0 lg:block" :class="mobilePane === 'explorer' ? 'block' : 'hidden'">
+      <div
+        role="region"
+        aria-label="资源列表"
+        class="h-full min-h-0 lg:block"
+        :class="mobilePane === 'explorer' ? 'block' : 'hidden'"
+      >
         <ExplorerBento ref="explorerRef" @open-inspector="mobilePane = 'inspector'" />
       </div>
 
       <!-- 右翼检视与剪贴板创作便当盒 -->
-      <div class="h-full min-h-0 lg:block" :class="mobilePane === 'inspector' ? 'block' : 'hidden'">
-        <InspectorBento @close-panel="mobilePane = 'explorer'" />
+      <div
+        role="region"
+        :aria-label="store.creatingClip ? '新建片段' : '检视编辑'"
+        class="h-full min-h-0 lg:block"
+        :class="mobilePane === 'inspector' ? 'block' : 'hidden'"
+      >
+        <InspectorBento
+          v-if="isDesktopViewport || inspectorLoaded"
+          @close-panel="mobilePane = 'explorer'"
+        />
       </div>
     </main>
 
     <!-- 移动端底部便当切换栏（小于 lg 显示） -->
-    <nav class="lg:hidden bento-box h-11 shrink-0 grid grid-cols-3 p-1 gap-1">
+    <nav
+      role="group"
+      aria-label="移动端工作区面板"
+      class="lg:hidden bento-box h-11 shrink-0 grid grid-cols-3 p-1 gap-1"
+    >
       <button
         type="button"
+        :aria-pressed="mobilePane === 'nav'"
         class="rounded-ctrl text-xs flex items-center justify-center gap-1.5 border-none cursor-pointer transition-colors"
         :class="
           mobilePane === 'nav'
@@ -191,6 +272,7 @@ onBeforeUnmount(() => {
 
       <button
         type="button"
+        :aria-pressed="mobilePane === 'explorer'"
         class="rounded-ctrl text-xs flex items-center justify-center gap-1.5 border-none cursor-pointer transition-colors"
         :class="
           mobilePane === 'explorer'
@@ -205,6 +287,7 @@ onBeforeUnmount(() => {
 
       <button
         type="button"
+        :aria-pressed="mobilePane === 'inspector'"
         class="rounded-ctrl text-xs flex items-center justify-center gap-1.5 border-none cursor-pointer transition-colors"
         :class="
           mobilePane === 'inspector'

@@ -49,6 +49,7 @@ export const usePrefsStore = defineStore(
 )
 
 const MAX_CONCURRENT_UPLOADS = 3
+const NAME_COLLATOR = new Intl.Collator('zh-CN')
 
 export const useWorkspaceStore = defineStore('bento-workspace', () => {
   const objects = ref<StorageObject[]>([])
@@ -57,6 +58,8 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
   const loadingMore = ref(false)
   const truncated = ref(false)
   const nextToken = ref<string | undefined>(undefined)
+  let refreshPromise: Promise<void> | null = null
+  let metricsPromise: Promise<void> | null = null
 
   const currentPrefix = ref('')
   const activeCategory = ref<ResourceCategory>('all')
@@ -82,6 +85,19 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
     return objects.value.find((item) => item.Key === activeKey.value) ?? null
   })
 
+  const objectFacts = computed(() =>
+    objects.value.map((item) => {
+      const cleanKey = decodeKey(item.Key)
+      return {
+        item,
+        cleanKey,
+        searchKey: cleanKey.toLowerCase(),
+        category: classifyResource(item),
+        modifiedAt: item.LastModified ? new Date(item.LastModified).getTime() : 0
+      }
+    })
+  )
+
   // 计算各分类实时数量（基于已加载集合与统计接口结合）
   const categoryCounts = computed<Record<ResourceCategory, number>>(() => {
     const counts: Record<ResourceCategory, number> = {
@@ -94,20 +110,18 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
       archive: 0,
       other: 0
     }
-    for (const item of objects.value) {
-      const cat = classifyResource(item)
-      counts[cat]++
+    for (const { category } of objectFacts.value) {
+      counts[category]++
     }
     return counts
   })
 
-  // 派生当前前缀下的虚拟子目录（仅在无全局搜索词且分类为全部时展示层级）
   const virtualFolders = computed<string[]>(() => {
     if (searchQuery.value.trim() || activeCategory.value !== 'all') return []
     const prefix = currentPrefix.value
     const dirs = new Set<string>()
-    for (const item of objects.value) {
-      const clean = decodeKey(item.Key)
+    for (const { cleanKey } of objectFacts.value) {
+      const clean = cleanKey
       if (!clean.startsWith(prefix)) continue
       const rest = clean.slice(prefix.length)
       const slashIdx = rest.indexOf('/')
@@ -115,7 +129,7 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
         dirs.add(prefix + rest.slice(0, slashIdx + 1))
       }
     }
-    return [...dirs].sort((a, b) => a.localeCompare(b, 'zh-CN'))
+    return [...dirs].sort((a, b) => NAME_COLLATOR.compare(a, b))
   })
 
   // 过滤与排序后的可见资源列表
@@ -125,20 +139,16 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
     const prefix = currentPrefix.value
     const cat = activeCategory.value
 
-    const filtered = objects.value.filter((item) => {
-      const clean = decodeKey(item.Key)
-
+    const filtered = objectFacts.value.filter(({ cleanKey, searchKey, category }) => {
       if (kw) {
-        if (!clean.toLowerCase().includes(kw)) return false
+        if (!searchKey.includes(kw)) return false
       } else if (cat === 'all') {
-        if (!clean.startsWith(prefix)) return false
-        const rest = clean.slice(prefix.length)
+        if (!cleanKey.startsWith(prefix)) return false
+        const rest = cleanKey.slice(prefix.length)
         if (!rest || rest.includes('/')) return false
       }
 
-      if (cat !== 'all' && classifyResource(item) !== cat) {
-        return false
-      }
+      if (cat !== 'all' && category !== cat) return false
 
       return true
     })
@@ -146,23 +156,21 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
     const dirFactor = prefs.sortDirection === 'asc' ? 1 : -1
     const field = prefs.sortField
     // 预计算排序键（Schwartzian 变换），避免比较器内重复解码与日期解析
-    const collator = new Intl.Collator('zh-CN')
-    const decorated = filtered.map((item) => ({
-      item,
+    const decorated = filtered.map((fact) => ({
+      fact,
       key:
         field === 'size'
-          ? (item.Size ?? 0)
+          ? (fact.item.Size ?? 0)
           : field === 'name'
-            ? decodeKey(item.Key)
-            : item.LastModified
-              ? new Date(item.LastModified).getTime()
-              : 0
+            ? fact.cleanKey
+            : fact.modifiedAt
     }))
     decorated.sort((a, b) => {
-      if (field === 'name') return collator.compare(a.key as string, b.key as string) * dirFactor
+      if (field === 'name')
+        return NAME_COLLATOR.compare(a.key as string, b.key as string) * dirFactor
       return ((a.key as number) - (b.key as number)) * dirFactor
     })
-    return decorated.map((d) => d.item)
+    return decorated.map((d) => d.fact.item)
   })
 
   const activeTransferCount = computed(
@@ -170,6 +178,17 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
   )
 
   async function refreshList() {
+    if (refreshPromise) return await refreshPromise
+
+    refreshPromise = refreshListInternal()
+    try {
+      await refreshPromise
+    } finally {
+      refreshPromise = null
+    }
+  }
+
+  async function refreshListInternal() {
     loading.value = true
     try {
       const res = await queryObjects({ maxKeys: 300 })
@@ -208,16 +227,29 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
     }
   }
 
-  async function refreshMetrics() {
+  async function refreshMetrics(force = false) {
+    if (metricsPromise && !force) return await metricsPromise
+    if (metricsPromise) await metricsPromise
+
+    const request = refreshMetricsInternal(force)
+    metricsPromise = request
     try {
-      metrics.value = await queryBucketMetrics()
+      await request
+    } finally {
+      if (metricsPromise === request) metricsPromise = null
+    }
+  }
+
+  async function refreshMetricsInternal(force: boolean) {
+    try {
+      metrics.value = await queryBucketMetrics(force)
     } catch {
       // 统计失败不阻塞主列表
     }
   }
 
-  async function bootstrap() {
-    await Promise.all([refreshList(), refreshMetrics()])
+  async function bootstrap(forceMetrics = false) {
+    await Promise.all([refreshList(), refreshMetrics(forceMetrics)])
   }
 
   function inspectObject(key: string | null) {
@@ -364,7 +396,7 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
         record.cancel = undefined
         runningCount = Math.max(0, runningCount - 1)
         if (activeTransferCount.value === 0) {
-          void bootstrap()
+          void bootstrap(true)
         } else {
           pumpTransferQueue()
         }
@@ -421,7 +453,7 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
       activeKey.value = null
     }
     notify('对象已永久移除', 'ok')
-    void refreshMetrics()
+    void refreshMetrics(true)
   }
 
   async function deleteBatchSelected() {
@@ -435,7 +467,7 @@ export const useWorkspaceStore = defineStore('bento-workspace', () => {
     }
     selectedKeys.value = []
     notify(`已批量移除 ${count} 项资源`, 'ok')
-    void refreshMetrics()
+    void refreshMetrics(true)
   }
 
   return {

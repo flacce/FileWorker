@@ -199,18 +199,12 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.15
         version: 6.43.15
-      '@tanstack/vue-virtual':
-        specifier: ^3.13.52
-        version: 3.13.52(vue@3.6.0-rc.15(@typescript/typescript6@6.0.2))
       '@unocss/reset':
         specifier: ^66.13.0
         version: 66.13.0
       codemirror:
         specifier: ^6.0.2
         version: 6.0.2
-      cookie:
-        specifier: ^2.0.2
-        version: 2.0.2
       hono:
         specifier: 5.0.0-rc.1
         version: 5.0.0-rc.1
@@ -1299,14 +1293,6 @@ packages:
   '@speed-highlight/core@1.2.24':
     resolution: {integrity: sha512-qeW2e1l78afw8VhRPfPQ1Gjj+KU5XFQ/OFV5ti6eTa9bruO7mJyZtA4vw0ofqmA3tKCkROE9xLk3VZoeRc98nw==}
 
-  '@tanstack/virtual-core@3.19.11':
-    resolution: {integrity: sha512-/5iHb0RHBvj8Di59FDs4ESNm45jls33aZAi4zccVXZjc/6ZvwQP6nzEYeT6weXjTf9E6/vrp2JhYWRyO+ZP13A==}
-
-  '@tanstack/vue-virtual@3.13.52':
-    resolution: {integrity: sha512-qTwG7HNr5o+FPd/u+T05N73A8howtkB9FgQI71VcBzx6J2KsYzlVugRz/0ji17kl26D8SAdKux1Wmk3yhTI1Kw==}
-    peerDependencies:
-      vue: ^2.7.0 || ^3.0.0
-
   '@tsconfig/node26@26.0.2':
     resolution: {integrity: sha512-RIBSoNGQxUQ8r4hSrEzS6TrUneoKaCuX6BjL4zF3wqttGq2w06zCea4d8P1gRvM/HZyDT1FQJ8trZSyy/63oMg==}
 
@@ -1740,10 +1726,6 @@ packages:
   cookie@1.1.1:
     resolution: {integrity: sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ==}
     engines: {node: '>=18'}
-
-  cookie@2.0.2:
-    resolution: {integrity: sha512-SL0cVuEdETEp7pN0FuZb01toc3vnODEfVUCooxG1SJN0yIirh7JMb9X9bvfCFf0vzzbT68RdbKDHYTiWy7a7iw==}
-    engines: {node: '>=22'}
 
   crelt@1.0.7:
     resolution: {integrity: sha512-aK6BbWfhf4U/wCcLHKPJl/xa6VkVstRaPywWtMKGwuOLc/wZTyQYuoxgvZnNsBvv7Kg3YTBQYYBCggcviQczuA==}
@@ -3478,13 +3460,6 @@ snapshots:
 
   '@speed-highlight/core@1.2.24': {}
 
-  '@tanstack/virtual-core@3.19.11': {}
-
-  '@tanstack/vue-virtual@3.13.52(vue@3.6.0-rc.15(@typescript/typescript6@6.0.2))':
-    dependencies:
-      '@tanstack/virtual-core': 3.19.11
-      vue: 3.6.0-rc.15(@typescript/typescript6@6.0.2)
-
   '@tsconfig/node26@26.0.2': {}
 
   '@tybys/wasm-util@0.10.4':
@@ -4077,8 +4052,6 @@ snapshots:
   consola@3.4.2: {}
 
   cookie@1.1.1: {}
-
-  cookie@2.0.2: {}
 
   crelt@1.0.7: {}
 

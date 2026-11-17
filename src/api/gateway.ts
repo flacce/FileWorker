@@ -6,7 +6,38 @@ import type {
   VisibilityMode
 } from '@/types'
 import { buildObjectPath, decodeKey, encodeKeyPath } from '@/utils/format'
-import { clearClientSessionCookies, httpJson, HttpStatusError, putBinaryStream } from './http'
+import {
+  clearClientSessionCookies,
+  httpJson,
+  httpText,
+  HttpStatusError,
+  putBinaryStream
+} from './http'
+
+const TEXT_CACHE_TTL_MS = 30_000
+const TEXT_CACHE_MAX_ENTRIES = 8
+const textCache = new Map<string, { value: string; expiresAt: number }>()
+let textCacheVersion = 0
+
+function canonicalTextKey(key: string): string {
+  return decodeKey(key)
+}
+
+function invalidateTextCache(key: string) {
+  textCacheVersion++
+  textCache.delete(canonicalTextKey(key))
+}
+
+function cacheText(key: string, value: string) {
+  const cacheKey = canonicalTextKey(key)
+  textCache.delete(cacheKey)
+  while (textCache.size >= TEXT_CACHE_MAX_ENTRIES) {
+    const oldest = textCache.keys().next().value
+    if (oldest === undefined) break
+    textCache.delete(oldest)
+  }
+  textCache.set(cacheKey, { value, expiresAt: Date.now() + TEXT_CACHE_TTL_MS })
+}
 
 export async function probeSession(): Promise<boolean> {
   try {
@@ -78,46 +109,35 @@ export async function queryObjects(params?: {
   }
 }
 
-export async function queryBucketMetrics(): Promise<BucketMetrics> {
-  return await httpJson<BucketMetrics>('/api/stats')
+export async function queryBucketMetrics(force = false): Promise<BucketMetrics> {
+  return await httpJson<BucketMetrics>(
+    '/api/stats',
+    force ? { headers: { 'Cache-Control': 'no-cache' } } : undefined
+  )
 }
 
-export async function readObjectText(key: string, signal?: AbortSignal): Promise<string> {
-  const url = `${buildObjectPath(key)}?_t=${Date.now()}`
-  const res = await fetch(url, {
+export async function readObjectText(
+  key: string,
+  signal?: AbortSignal,
+  cacheable = false
+): Promise<string> {
+  const cacheKey = canonicalTextKey(key)
+  const cacheVersion = textCacheVersion
+  if (cacheable) {
+    const cached = textCache.get(cacheKey)
+    if (cached) {
+      if (cached.expiresAt > Date.now()) return cached.value
+      textCache.delete(cacheKey)
+    }
+  }
+
+  const value = await httpText(buildObjectPath(cacheKey), {
     method: 'GET',
-    credentials: 'same-origin',
     cache: 'no-store',
     signal
   })
-  if (!res.ok) {
-    throw new HttpStatusError(`读取内容失败（${res.status}）`, res.status)
-  }
-  return await res.text()
-}
-
-export async function probeObjectMetadata(
-  key: string,
-  signal?: AbortSignal
-): Promise<Record<string, string> | null> {
-  try {
-    const res = await fetch(buildObjectPath(key), {
-      method: 'GET',
-      headers: { Range: 'bytes=0-0' },
-      credentials: 'same-origin',
-      cache: 'no-store',
-      signal
-    })
-    if (!res.ok && res.status !== 206) return null
-    const meta: Record<string, string> = {}
-    const vis = res.headers.get('x-store-visibility')
-    const st = res.headers.get('x-store-type')
-    if (vis) meta['x-store-visibility'] = vis
-    if (st) meta['x-store-type'] = st
-    return Object.keys(meta).length > 0 ? meta : null
-  } catch {
-    return null
-  }
+  if (cacheable && cacheVersion === textCacheVersion) cacheText(cacheKey, value)
+  return value
 }
 
 export async function writeTextObject(
@@ -135,6 +155,7 @@ export async function writeTextObject(
     },
     body: content
   })
+  invalidateTextCache(key)
 }
 
 interface PresignResult {
@@ -186,6 +207,7 @@ export function startFileUpload(
         const task = putBinaryStream(presign.presignedUrl, file, s3Headers, onProgress, false)
         activeCancel = task.cancel
         await task.done
+        invalidateTextCache(cleanKey)
         return
       }
     } catch (err: unknown) {
@@ -208,6 +230,7 @@ export function startFileUpload(
     )
     activeCancel = fallbackTask.cancel
     await fallbackTask.done
+    invalidateTextCache(cleanKey)
   })()
 
   return {
@@ -231,6 +254,7 @@ export async function changeObjectVisibility(
       'x-store-type': storeKind
     }
   })
+  invalidateTextCache(key)
 }
 
 export async function moveObjectKey(oldKey: string, newKey: string): Promise<void> {
@@ -242,12 +266,15 @@ export async function moveObjectKey(oldKey: string, newKey: string): Promise<voi
       newKey: encodeKeyPath(newKey)
     })
   })
+  invalidateTextCache(oldKey)
+  invalidateTextCache(newKey)
 }
 
 export async function deleteSingleObject(key: string): Promise<void> {
   await httpJson<string>(buildObjectPath(key), {
     method: 'DELETE'
   })
+  invalidateTextCache(key)
 }
 
 export async function deleteMultipleObjects(keys: string[]): Promise<number> {
@@ -256,6 +283,7 @@ export async function deleteMultipleObjects(keys: string[]): Promise<number> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ keys: keys.map((k) => encodeKeyPath(k)) })
   })
+  for (const key of keys) invalidateTextCache(key)
   return res.count
 }
 

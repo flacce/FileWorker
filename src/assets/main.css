@@ -187,6 +187,18 @@ body,
   outline: none !important;
 }
 
+/* 大对象列表只布局接近视口的行，保持固定行高以避免滚动条跳动。 */
+.object-list-row {
+  content-visibility: auto;
+  contain-intrinsic-size: 40px;
+}
+
+/* 画廊卡片延迟绘制离屏内容，缩短大量缩略图首次布局时间。 */
+.object-grid-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 180px;
+}
+
 /* 键盘焦点可见性：仅键盘导航时显示单色描边 */
 :focus-visible {
   outline: 1.5px solid rgba(45, 212, 191, 0.7);

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import type { Extension } from '@codemirror/state'
+import type { Compartment, Extension } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 import { extractExt } from '@/utils/format'
 
@@ -31,6 +31,13 @@ const ready = ref(false)
 let editorInstance: EditorView | null = null
 let syncingExternal = false
 let mountToken = 0
+let languageToken = 0
+let languageCompartment: Compartment | null = null
+let wrapCompartment: Compartment | null = null
+let readOnlyCompartment: Compartment | null = null
+let lineWrappingExtension: Extension | null = null
+let readOnlyExtension: ((enabled: boolean) => Extension) | null = null
+let languageKey: string | null = null
 
 async function resolveLanguageExtension(name: string): Promise<Extension | null> {
   const ext = extractExt(name)
@@ -69,11 +76,48 @@ async function resolveLanguageExtension(name: string): Promise<Extension | null>
 }
 
 function destroyEditor() {
+  languageToken++
   if (editorInstance) {
     editorInstance.destroy()
     editorInstance = null
   }
+  languageCompartment = null
+  wrapCompartment = null
+  readOnlyCompartment = null
+  lineWrappingExtension = null
+  readOnlyExtension = null
+  languageKey = null
   ready.value = false
+}
+
+async function updateLanguage(name: string) {
+  const nextLanguageKey = extractExt(name)
+  if (nextLanguageKey === languageKey) return
+  const token = ++languageToken
+  const langExt = await resolveLanguageExtension(name)
+  if (token !== languageToken || !editorInstance || !languageCompartment) return
+  editorInstance.dispatch({
+    effects: languageCompartment.reconfigure(langExt ?? [])
+  })
+  languageKey = nextLanguageKey
+}
+
+function reconfigureEditor() {
+  if (
+    !editorInstance ||
+    !wrapCompartment ||
+    !readOnlyCompartment ||
+    !lineWrappingExtension ||
+    !readOnlyExtension
+  ) {
+    return
+  }
+  editorInstance.dispatch({
+    effects: [
+      wrapCompartment.reconfigure(props.lineWrap ? lineWrappingExtension : []),
+      readOnlyCompartment.reconfigure(readOnlyExtension(props.readonly))
+    ]
+  })
 }
 
 async function mountEditor() {
@@ -81,14 +125,19 @@ async function mountEditor() {
   destroyEditor()
   if (!hostEl.value) return
 
-  const [{ basicSetup }, viewMod, stateMod, langExt] = await Promise.all([
+  const [{ basicSetup }, viewMod, stateMod] = await Promise.all([
     import('codemirror'),
     import('@codemirror/view'),
-    import('@codemirror/state'),
-    resolveLanguageExtension(props.filename)
+    import('@codemirror/state')
   ])
 
   if (token !== mountToken || !hostEl.value) return
+
+  languageCompartment = new stateMod.Compartment()
+  wrapCompartment = new stateMod.Compartment()
+  readOnlyCompartment = new stateMod.Compartment()
+  lineWrappingExtension = viewMod.EditorView.lineWrapping
+  readOnlyExtension = (enabled) => (enabled ? stateMod.EditorState.readOnly.of(true) : [])
 
   const darkTheme = viewMod.EditorView.theme(
     {
@@ -166,15 +215,11 @@ async function mountEditor() {
     })
   ]
 
-  if (props.lineWrap) {
-    extensions.push(viewMod.EditorView.lineWrapping)
-  }
-  if (props.readonly) {
-    extensions.push(stateMod.EditorState.readOnly.of(true))
-  }
-  if (langExt) {
-    extensions.push(langExt)
-  }
+  extensions.push(
+    languageCompartment.of([]),
+    wrapCompartment.of(props.lineWrap ? lineWrappingExtension : []),
+    readOnlyCompartment.of(readOnlyExtension(props.readonly))
+  )
 
   editorInstance = new viewMod.EditorView({
     state: stateMod.EditorState.create({
@@ -184,6 +229,7 @@ async function mountEditor() {
     parent: hostEl.value
   })
   ready.value = true
+  void updateLanguage(props.filename)
 }
 
 watch(
@@ -205,9 +251,16 @@ watch(
 )
 
 watch(
-  () => [props.filename, props.readonly, props.lineWrap],
+  () => props.filename,
+  (filename) => {
+    if (editorInstance) void updateLanguage(filename)
+  }
+)
+
+watch(
+  () => [props.readonly, props.lineWrap],
   () => {
-    void mountEditor()
+    reconfigureEditor()
   }
 )
 
