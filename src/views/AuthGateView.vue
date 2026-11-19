@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { probeSession, submitPasscode } from '@/api'
+import { clearExplicitLogout, hasExplicitLogout, probeSession, submitPasscode } from '@/api'
 import { notify } from '@/composables/useNotice'
 
 const router = useRouter()
@@ -12,6 +12,16 @@ const reveal = ref(false)
 const submitting = ref(false)
 const checkingOpenMode = ref(true)
 const errorHint = ref('')
+const invalidPasscode = ref(false)
+
+function clearError() {
+  errorHint.value = ''
+  invalidPasscode.value = false
+}
+
+function isExplicitLogout(): boolean {
+  return route.query.logout === '1' || hasExplicitLogout()
+}
 
 function resolveTargetRoute(): string {
   const redirect = route.query.redirect
@@ -22,6 +32,10 @@ function resolveTargetRoute(): string {
 }
 
 async function tryAutoUnlock() {
+  if (isExplicitLogout()) {
+    checkingOpenMode.value = false
+    return
+  }
   checkingOpenMode.value = true
   try {
     const valid = await probeSession()
@@ -35,9 +49,11 @@ async function tryAutoUnlock() {
 }
 
 async function handleUnlock() {
-  errorHint.value = ''
-  if (!passcode.value.trim()) {
-    errorHint.value = '请输入访问口令后再试'
+  if (submitting.value || checkingOpenMode.value) return
+  clearError()
+  if (!passcode.value.trim() && !isExplicitLogout()) {
+    invalidPasscode.value = true
+    errorHint.value = '请输入访问口令。'
     return
   }
 
@@ -45,11 +61,19 @@ async function handleUnlock() {
   try {
     const res = await submitPasscode(passcode.value)
     if (res.ok) {
-      notify('门禁验证通过，欢迎回到工作台', 'ok')
+      clearExplicitLogout()
+      notify('欢迎回来，喵！', 'ok')
       await router.replace(resolveTargetRoute())
+    } else if (res.status === 400) {
+      errorHint.value = '请输入访问口令。'
+    } else if (res.status === 401) {
+      invalidPasscode.value = true
+      errorHint.value = '口令不正确，请重新输入。'
     } else {
-      errorHint.value = res.error || '访问口令不匹配，请核对后重试'
+      errorHint.value = '暂时连不上，请稍后再试。'
     }
+  } catch {
+    errorHint.value = '暂时连不上，请稍后再试。'
   } finally {
     submitting.value = false
   }
@@ -61,118 +85,195 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="w-full h-full flex items-center justify-center p-4 bg-bento-canvas">
-    <div class="w-full max-w-[620px] grid grid-cols-1 md:grid-cols-12 gap-2.5">
-      <!-- 主验证便当盒 -->
-      <section class="bento-box md:col-span-7 p-6 justify-between min-h-[300px]">
-        <div>
-          <div class="flex items-center gap-2.5 mb-5">
-            <div
-              class="w-6 h-6 grid grid-cols-2 gap-0.5 p-0.5 rounded-tag bg-bento-raised border border-white/[0.08]"
-            >
-              <span class="rounded-[1.5px] bg-accent" />
-              <span class="rounded-[1.5px] bg-white/25" />
-              <span class="rounded-[1.5px] bg-white/20" />
-              <span class="rounded-[1.5px] bg-white/10" />
-            </div>
-            <span class="text-sm font-semibold tracking-tight text-ink-primary">云端文件匣</span>
-            <span class="tag-neutral ml-auto">受控门禁</span>
-          </div>
+  <main class="auth-page">
+    <section class="auth-panel" aria-labelledby="auth-title">
+      <header class="brand">
+        <svg class="brand-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+          <path
+            d="M9 19 12 7l10 8h4l10-8 3 12v15a4 4 0 0 1-4 4H13a4 4 0 0 1-4-4z"
+            fill="currentColor"
+            fill-opacity=".18"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M17 25h5l2 2h7v7H17z"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linejoin="round"
+          />
+          <circle cx="18" cy="20" r="1" fill="currentColor" />
+          <circle cx="30" cy="20" r="1" fill="currentColor" />
+        </svg>
+        <h1 id="auth-title">喵喵文件匣</h1>
+      </header>
 
-          <h1 class="text-lg font-semibold text-ink-primary tracking-tight m-0">
-            身份验证与工作台解锁
-          </h1>
-          <p class="text-xs text-ink-secondary mt-1.5 leading-relaxed">
-            当前存储实例已启用访问保护，验证口令后即可管理云端对象、签发限时直链与同步云剪贴板。
-          </p>
-        </div>
-
-        <form class="mt-6 space-y-3" @submit.prevent="handleUnlock">
-          <div>
-            <label class="block text-[11px] text-ink-secondary mb-1.5">访问口令</label>
-            <div class="relative flex items-center">
-              <input
-                v-model="passcode"
-                :type="reveal ? 'text' : 'password'"
-                autofocus
-                autocomplete="current-password"
-                placeholder="在此键入预设门禁口令…"
-                class="ctrl-input h-9 pr-9 text-xs"
-                @input="errorHint = ''"
-              />
-              <button
-                type="button"
-                class="btn-icon absolute right-1 w-7 h-7"
-                :title="reveal ? '隐藏口令' : '显示口令'"
-                @click="reveal = !reveal"
-              >
-                <span
-                  :class="reveal ? 'i-mdi-eye-off-outline' : 'i-mdi-eye-outline'"
-                  class="text-sm"
-                />
-              </button>
-            </div>
-            <p v-if="errorHint" class="text-[11px] text-danger mt-1.5 m-0">
-              {{ errorHint }}
-            </p>
-          </div>
-
+      <form class="auth-form" @submit.prevent="handleUnlock">
+        <label for="passcode">访问口令</label>
+        <div class="input-wrap">
+          <input
+            id="passcode"
+            v-model="passcode"
+            :type="reveal ? 'text' : 'password'"
+            autocomplete="current-password"
+            :aria-invalid="invalidPasscode"
+            :aria-describedby="errorHint ? 'auth-error' : undefined"
+            :readonly="submitting || checkingOpenMode"
+            @input="clearError"
+          />
           <button
-            type="submit"
-            class="btn-accent w-full h-9 font-medium"
-            :disabled="submitting || checkingOpenMode"
+            type="button"
+            class="visibility-button"
+            :title="reveal ? '隐藏口令' : '显示口令'"
+            :aria-label="reveal ? '隐藏口令' : '显示口令'"
+            @click="reveal = !reveal"
           >
             <span
-              v-if="submitting || checkingOpenMode"
-              class="i-mdi-loading animate-spin text-sm"
+              :class="reveal ? 'i-mdi-eye-off-outline' : 'i-mdi-eye-outline'"
+              aria-hidden="true"
             />
-            <span>{{
-              checkingOpenMode
-                ? '正在检测节点状态…'
-                : submitting
-                  ? '正在核验口令…'
-                  : '解锁进入工作台'
-            }}</span>
           </button>
-        </form>
-      </section>
-
-      <!-- 右翼上下双便当盒 -->
-      <div class="md:col-span-5 flex flex-col gap-2.5">
-        <section class="bento-box p-5 flex-1 justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-medium text-ink-primary">核心架构特性</span>
-            <span class="i-mdi-cube-scan text-ink-muted text-base" />
-          </div>
-          <ul class="list-none p-0 m-0 space-y-2.5 text-xs text-ink-secondary mt-3">
-            <li class="flex items-center gap-2">
-              <span class="w-1 h-1 rounded-full bg-accent shrink-0" />
-              <span>预签名直传与流式分片回退</span>
-            </li>
-            <li class="flex items-center gap-2">
-              <span class="w-1 h-1 rounded-full bg-ink-muted shrink-0" />
-              <span>公开直链与私密限时签名分发</span>
-            </li>
-            <li class="flex items-center gap-2">
-              <span class="w-1 h-1 rounded-full bg-ink-muted shrink-0" />
-              <span>在线文本代码编辑与云剪贴板</span>
-            </li>
-          </ul>
-        </section>
-
-        <section class="bento-box p-4 dot-matrix-bg justify-between min-h-[96px]">
-          <div class="flex items-center justify-between text-[11px] text-ink-secondary">
-            <span>边缘存储网关</span>
-            <span class="inline-flex items-center gap-1.5 text-accent">
-              <span class="w-1.5 h-1.5 rounded-full bg-accent" />
-              <span>在线就绪</span>
-            </span>
-          </div>
-          <div class="text-[11px] text-ink-muted leading-normal mt-2">
-            会话凭据采用安全签名校验，关闭页面后依然保持长效授权。
-          </div>
-        </section>
-      </div>
-    </div>
-  </div>
+        </div>
+        <p v-if="errorHint" id="auth-error" class="error-message" role="alert">
+          {{ errorHint }}
+        </p>
+        <button type="submit" class="submit-button" :disabled="submitting || checkingOpenMode">
+          <span aria-live="polite">{{
+            checkingOpenMode ? '正在检查会话…' : submitting ? '正在验证口令…' : '解锁'
+          }}</span>
+        </button>
+      </form>
+    </section>
+  </main>
 </template>
+
+<style scoped>
+.auth-page {
+  box-sizing: border-box;
+  height: 100%;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  color: var(--ink-primary);
+  background: var(--bento-canvas);
+}
+
+.auth-panel {
+  box-sizing: border-box;
+  min-width: 0;
+  width: min(100%, 400px);
+  flex: none;
+  margin: auto;
+  padding: clamp(20px, 5vw, 32px);
+  border: 1px solid var(--bento-line);
+  border-radius: 8px;
+  background: var(--bento-cell);
+}
+
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  color: var(--accent);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+h1 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 650;
+}
+.auth-form {
+  margin-top: 22px;
+}
+.auth-form label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ink-secondary);
+  font-size: 12px;
+}
+.input-wrap {
+  position: relative;
+}
+.input-wrap input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 46px;
+  padding: 0 52px 0 13px;
+  border: 1px solid var(--ink-muted);
+  border-radius: 5px;
+  outline: none;
+  background: var(--bento-raised);
+  color: var(--ink-primary);
+  font: inherit;
+  font-size: 16px;
+}
+
+.input-wrap input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.visibility-button {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+.visibility-button:hover {
+  color: var(--accent);
+}
+.visibility-button:focus-visible,
+.submit-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.error-message {
+  margin: 8px 0 0;
+  color: var(--ink-primary);
+  font-size: 14px;
+}
+.submit-button {
+  width: 100%;
+  height: 44px;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--bento-cell);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.submit-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 85%, white);
+}
+.submit-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+@media (max-width: 420px) {
+  .auth-page {
+    padding: 16px;
+  }
+}
+</style>

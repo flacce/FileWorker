@@ -5,7 +5,7 @@ import NoticeHost from '@/modules/NoticeHost.vue'
 
 <template>
   <div
-    class="h-screen w-screen overflow-hidden bg-bento-canvas text-ink-primary font-sans select-none"
+    class="h-[100dvh] w-full overflow-hidden bg-bento-canvas text-ink-primary font-sans select-none"
   >
     <RouterView />
     <NoticeHost />

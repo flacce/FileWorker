@@ -1,5 +1,5 @@
 import type { Context } from 'hono'
-import { setCookie } from 'hono/cookie'
+import { deleteCookie, setCookie } from 'hono/cookie'
 import type { AppEnv } from '../bindings'
 import { constantTimeEqual, hmacBase64Url } from '../core/crypto'
 
@@ -42,4 +42,11 @@ export function issueSessionCookies(c: Context<AppEnv>, token: string | null) {
   setCookie(c, PRESENCE_COOKIE, '1', base)
   // 清理历史版本遗留的明文口令 Cookie
   setCookie(c, LEGACY_PASSWORD_COOKIE, '', { path: '/', secure: true, sameSite: 'Lax', maxAge: 0 })
+}
+
+export function clearSessionCookies(c: Context<AppEnv>) {
+  const base = { path: '/', secure: true, sameSite: 'Lax' } as const
+  deleteCookie(c, SESSION_COOKIE, { ...base, httpOnly: true })
+  deleteCookie(c, PRESENCE_COOKIE, base)
+  deleteCookie(c, LEGACY_PASSWORD_COOKIE, base)
 }

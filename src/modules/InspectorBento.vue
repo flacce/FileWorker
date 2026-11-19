@@ -980,97 +980,14 @@ onBeforeUnmount(() => {
       </footer>
     </template>
 
-    <!-- 姿态三：待机概览与快捷操作便当列 -->
+    <!-- 移动端允许在尚未选中文件时打开预览页 -->
     <template v-else>
-      <header
-        class="px-3 py-2.5 border-b border-white/[0.06] flex items-center justify-between shrink-0"
-      >
-        <span class="text-xs font-semibold text-ink-primary">检视与快捷指令</span>
-        <span class="tag-neutral">就绪</span>
-      </header>
-
-      <div class="p-3 flex-1 min-h-0 overflow-y-auto flex flex-col gap-2.5">
-        <!-- 子便当一：快速云剪贴板 -->
-        <button
-          type="button"
-          class="bento-subbox p-3.5 text-left hover:border-accent-line hover:bg-bento-hover transition-all cursor-pointer group"
-          @click="store.openClipCreator()"
-        >
-          <div class="flex items-center justify-between mb-1.5">
-            <span
-              class="text-xs font-semibold text-ink-primary group-hover:text-accent transition-colors"
-            >
-              新建在线云剪贴板
-            </span>
-            <span class="i-mdi-arrow-top-right text-sm text-ink-muted group-hover:text-accent" />
-          </div>
-          <p class="text-[11px] text-ink-secondary m-0 leading-relaxed">
-            即时创建短链文本、代码片段或排版笔记，支持在线二次编辑与一键分发。
-          </p>
+      <div class="flex-1 flex flex-col items-center justify-center gap-3 p-5">
+        <span class="i-mdi-file-eye-outline text-3xl text-ink-muted" aria-hidden="true" />
+        <p class="m-0 text-sm font-medium">尚未选择文件</p>
+        <button type="button" class="btn-surface min-h-11" @click="closeInspector">
+          返回文件列表
         </button>
-
-        <!-- 子便当二：全局剪贴板图像投递说明 -->
-        <div class="bento-subbox p-3.5 dot-matrix-bg space-y-1.5">
-          <div class="flex items-center gap-2 text-xs font-medium text-ink-primary">
-            <span class="i-mdi-clipboard-arrow-up-outline text-accent text-sm" />
-            <span>截图与文件无感粘贴上传</span>
-          </div>
-          <p class="text-[11px] text-ink-secondary m-0 leading-relaxed">
-            在工作台任意空白区域直接按下粘贴快捷键，系统将自动捕获剪贴板中的截图或文件并推入高速上传队列。
-          </p>
-        </div>
-
-        <!-- 子便当三：工作台快捷控制矩阵 -->
-        <div class="bento-subbox p-3.5 space-y-2.5 mt-auto">
-          <div class="flex items-center justify-between text-[11px]">
-            <span class="font-medium text-ink-secondary">工作台快捷操作</span>
-            <span class="text-ink-muted">按 / 键快速检索</span>
-          </div>
-          <div class="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              class="btn-surface h-8 justify-start px-2.5 text-xs"
-              @click="prefs.viewLayout = prefs.viewLayout === 'list' ? 'grid' : 'list'"
-            >
-              <span
-                :class="
-                  prefs.viewLayout === 'list'
-                    ? 'i-mdi-grid-large'
-                    : 'i-mdi-format-list-bulleted-square'
-                "
-                class="text-accent text-xs"
-              />
-              <span>{{ prefs.viewLayout === 'list' ? '切换画廊视图' : '切换列表视图' }}</span>
-            </button>
-            <button
-              type="button"
-              class="btn-surface h-8 justify-start px-2.5 text-xs"
-              @click="prefs.toggleVisibilityDefault()"
-            >
-              <span
-                :class="prefs.defaultVisibility === 'public' ? 'i-mdi-earth' : 'i-mdi-lock-outline'"
-                class="text-accent text-xs"
-              />
-              <span>{{ prefs.defaultVisibility === 'public' ? '默认：公开' : '默认：私密' }}</span>
-            </button>
-            <button
-              type="button"
-              class="btn-surface h-8 justify-start px-2.5 text-xs"
-              @click="store.bootstrap()"
-            >
-              <span class="i-mdi-refresh text-accent text-xs" />
-              <span>同步云端索引</span>
-            </button>
-            <button
-              type="button"
-              class="btn-surface h-8 justify-start px-2.5 text-xs"
-              @click="prefs.expandedInspector = !prefs.expandedInspector"
-            >
-              <span class="i-mdi-arrow-expand-horizontal text-accent text-xs" />
-              <span>{{ prefs.expandedInspector ? '标准检视栏宽' : '宽幅检视栏宽' }}</span>
-            </button>
-          </div>
-        </div>
       </div>
     </template>
   </aside>

@@ -164,14 +164,14 @@ export function resolveRenderKind(item: StorageObject): RenderKind {
 
 export function categoryLabel(cat: ResourceCategory): string {
   const labels: Record<ResourceCategory, string> = {
-    all: '全部资源',
-    clip: '云剪贴板',
-    image: '图像画幅',
-    media: '音视流媒',
-    document: '版式文档',
-    code: '代码文本',
-    archive: '归档压缩',
-    other: '其他二进制'
+    all: '全部文件',
+    clip: '剪贴',
+    image: '图片',
+    media: '影音',
+    document: '文档',
+    code: '文本与代码',
+    archive: '压缩包',
+    other: '其他文件'
   }
   return labels[cat]
 }

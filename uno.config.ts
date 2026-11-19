@@ -28,7 +28,7 @@ export default defineConfig({
       ink: {
         primary: '#edeff2',
         secondary: '#949ba6',
-        muted: '#5e6572',
+        muted: '#9098a2',
         faint: '#3b4049',
       },
       accent: {

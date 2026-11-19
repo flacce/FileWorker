@@ -8,25 +8,25 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'home',
-    meta: { title: '云端文件匣 · 文件仓库' },
+    meta: { title: '喵喵文件匣' },
     component: () => import('./views/BentoWorkspaceView.vue')
   },
   {
     path: '/file',
     name: 'file',
-    meta: { title: '云端文件匣 · 文件仓库' },
+    meta: { title: '文件 · 喵喵文件匣' },
     component: () => import('./views/BentoWorkspaceView.vue')
   },
   {
     path: '/clip',
     name: 'clip',
-    meta: { title: '云端文件匣 · 云剪贴板' },
+    meta: { title: '剪贴板 · 喵喵文件匣' },
     component: () => import('./views/BentoWorkspaceView.vue')
   },
   {
     path: '/login',
     name: 'login',
-    meta: { title: '云端文件匣 · 门禁验证' },
+    meta: { title: '登录 · 喵喵文件匣' },
     component: () => import('./views/AuthGateView.vue')
   },
   {

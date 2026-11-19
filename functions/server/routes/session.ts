@@ -2,7 +2,7 @@ import { Hono, type Context } from 'hono'
 import type { AppEnv } from '../bindings'
 import { isAuthorized, verifyPassword } from '../security/guard'
 import { resolveSecret } from '../security/secret'
-import { issueSessionCookies, mintSessionToken } from '../security/session'
+import { clearSessionCookies, issueSessionCookies, mintSessionToken } from '../security/session'
 
 /** 兼容 JSON、表单与纯文本三种口令提交方式 */
 async function extractPassword(c: Context<AppEnv>): Promise<string> {
@@ -26,6 +26,11 @@ const session = new Hono<AppEnv>()
 
 session.get('/auth', async (c) => {
   if (!(await isAuthorized(c))) return c.text('未授权访问', 401)
+  return c.json({ ok: true })
+})
+
+session.post('/logout', (c) => {
+  clearSessionCookies(c)
   return c.json({ ok: true })
 })
 

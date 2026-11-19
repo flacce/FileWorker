@@ -18,6 +18,7 @@ const prefs = usePrefsStore()
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const dropHover = ref(false)
+const signingOut = ref(false)
 
 const isClipRoute = computed(() => route.path === '/clip')
 
@@ -98,6 +99,8 @@ function triggerFileDialog() {
   fileInputRef.value?.click()
 }
 
+defineExpose({ triggerFileDialog })
+
 function onFilePicked(ev: Event) {
   const input = ev.target as HTMLInputElement
   if (input.files && input.files.length > 0) {
@@ -110,43 +113,57 @@ function onFilePicked(ev: Event) {
 function onZoneDrop(ev: DragEvent) {
   dropHover.value = false
   if (ev.dataTransfer?.files?.length) {
-    store.enqueueUploads(ev.dataTransfer.files)
+    // 上传由工作区统一接收，这里只切回文件列表。
     emit('pickComplete')
   }
 }
 
-function handleSignOut() {
-  endSession()
-  notify('已安全退出当前会话', 'normal')
-  void router.replace('/login')
+async function handleSignOut() {
+  if (signingOut.value) return
+  signingOut.value = true
+  const logout = endSession()
+
+  try {
+    await router.replace({ path: '/login', query: { logout: '1' } })
+    const success = await logout
+    notify(
+      success ? '已退出登录' : '本地已退出，服务端会话清理失败，请检查网络后重试',
+      success ? 'normal' : 'warn'
+    )
+  } finally {
+    signingOut.value = false
+  }
 }
 </script>
 
 <template>
-  <aside class="flex flex-col gap-2.5 h-full min-h-0">
-    <!-- 便当盒一：品牌与双模式路由切换 -->
-    <div class="bento-box p-3 shrink-0 gap-2.5">
+  <aside class="rail bento-box h-full min-h-0">
+    <div class="p-3 shrink-0 space-y-3">
       <div class="flex items-center justify-between px-0.5">
-        <div class="flex items-center gap-2">
-          <div
-            class="w-5 h-5 grid grid-cols-2 gap-0.5 p-0.5 rounded-tag bg-bento-raised border border-white/[0.08]"
-          >
-            <span class="rounded-[1px] bg-accent" />
-            <span class="rounded-[1px] bg-white/25" />
-            <span class="rounded-[1px] bg-white/20" />
-            <span class="rounded-[1px] bg-white/10" />
-          </div>
-          <span class="text-xs font-semibold tracking-tight text-ink-primary">云端文件匣</span>
-        </div>
+        <span class="text-sm font-semibold text-ink-primary">工作区</span>
 
-        <button
-          type="button"
-          class="btn-icon w-6 h-6"
-          title="锁定并退出会话"
-          @click="handleSignOut"
-        >
-          <span class="i-mdi-logout-variant text-xs" />
-        </button>
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            class="ambient-toggle btn-icon"
+            aria-label="标志动效"
+            :aria-pressed="prefs.ambientMotion"
+            :title="prefs.ambientMotion ? '关闭标志动效' : '开启标志动效'"
+            @click="prefs.ambientMotion = !prefs.ambientMotion"
+          >
+            <span :class="prefs.ambientMotion ? 'i-mdi-pause' : 'i-mdi-play'" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="btn-icon w-6 h-6"
+            title="退出登录"
+            :disabled="signingOut"
+            :aria-busy="signingOut"
+            @click="handleSignOut"
+          >
+            <span class="i-mdi-logout-variant text-xs" />
+          </button>
+        </div>
       </div>
 
       <div
@@ -169,7 +186,7 @@ function handleSignOut() {
           class="h-7 rounded-[4px] text-xs font-medium transition-colors cursor-pointer border-none"
           :class="
             isClipRoute
-              ? 'bg-accent text-[#061210]'
+              ? 'bg-bento-active text-ink-primary shadow-sm'
               : 'bg-transparent text-ink-secondary hover:text-ink-primary'
           "
           @click="switchMode('clip')"
@@ -180,29 +197,25 @@ function handleSignOut() {
     </div>
 
     <!-- 便当盒二：资源分类筛选 -->
-    <div class="bento-box p-2.5 flex-1 min-h-0">
-      <div class="flex items-center justify-between px-1.5 pb-1.5 text-[11px] text-ink-muted">
-        <span>视图分类</span>
-        <span>数量</span>
+    <div class="p-2.5 flex-1 border-t border-white/[0.06]">
+      <div class="px-2 pt-2 pb-2.5 text-xs text-ink-muted">
+        <span>文件分类</span>
       </div>
 
-      <nav class="flex-1 overflow-y-auto space-y-0.5 pr-0.5">
+      <nav class="space-y-0.5" aria-label="文件分类">
         <button
           v-for="entry in navCategories"
           :key="entry.key"
           type="button"
-          class="w-full flex items-center justify-between px-2 h-8 rounded-ctrl text-xs transition-colors cursor-pointer border-none text-left relative"
+          class="category w-full flex items-center justify-between px-2 rounded-ctrl transition-colors cursor-pointer border-none text-left"
+          :aria-pressed="store.activeCategory === entry.key"
           :class="
             store.activeCategory === entry.key
-              ? 'bg-white/[0.055] text-ink-primary font-medium'
+              ? 'bg-accent-dim text-accent font-medium'
               : 'bg-transparent text-ink-secondary hover:bg-white/[0.03] hover:text-ink-primary'
           "
           @click="selectCategory(entry.key)"
         >
-          <span
-            v-if="store.activeCategory === entry.key"
-            class="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r bg-accent"
-          />
           <span class="flex items-center gap-2 truncate">
             <span
               :class="[
@@ -215,9 +228,7 @@ function handleSignOut() {
           </span>
           <span
             class="text-[11px] font-mono px-1.5 py-0.2 rounded-tag"
-            :class="
-              store.activeCategory === entry.key ? 'bg-accent-dim text-accent' : 'text-ink-muted'
-            "
+            :class="store.activeCategory === entry.key ? 'text-accent' : 'text-ink-muted'"
           >
             {{ store.categoryCounts[entry.key] }}
           </span>
@@ -226,7 +237,7 @@ function handleSignOut() {
     </div>
 
     <!-- 便当盒三：存储计量与快捷投递舱 -->
-    <div class="bento-box p-3 shrink-0 gap-2.5">
+    <div class="p-3 shrink-0 flex flex-col gap-3 border-t border-white/[0.06]">
       <div class="space-y-1.5">
         <div class="flex items-baseline justify-between">
           <span class="text-[11px] text-ink-secondary">存储概览</span>
@@ -245,7 +256,7 @@ function handleSignOut() {
         </div>
 
         <div class="flex items-center justify-between text-[11px] text-ink-muted">
-          <span>对象总数</span>
+          <span>文件总数</span>
           <span class="font-mono text-ink-secondary">{{ totalCountDisplay }} 项</span>
         </div>
       </div>
@@ -274,8 +285,9 @@ function handleSignOut() {
       </div>
 
       <!-- 点阵投递区 -->
-      <div
-        class="dot-matrix-bg rounded-ctrl border border-dashed p-3 text-center transition-colors cursor-pointer"
+      <button
+        type="button"
+        class="rounded-ctrl border border-dashed px-2 py-2.5 text-center transition-colors cursor-pointer"
         :class="
           dropHover
             ? 'border-accent bg-accent-dim'
@@ -286,14 +298,28 @@ function handleSignOut() {
         @dragleave.prevent="dropHover = false"
         @drop.prevent="onZoneDrop"
       >
-        <div class="flex items-center justify-center gap-1.5 text-xs text-ink-primary font-medium">
+        <span class="flex items-center justify-center gap-1.5 text-xs text-ink-secondary">
           <span class="i-mdi-tray-arrow-up text-accent text-sm" />
-          <span>投递上传文件</span>
-        </div>
-        <p class="text-[11px] text-ink-muted mt-0.5 m-0">点击选取或拖入此处</p>
-      </div>
+          <span>选择或拖入文件</span>
+        </span>
+      </button>
 
       <input ref="fileInputRef" type="file" multiple class="hidden" @change="onFilePicked" />
     </div>
   </aside>
 </template>
+
+<style scoped>
+.rail {
+  overflow-y: auto;
+}
+.category {
+  height: 38px;
+  font-size: 13px;
+}
+@media (pointer: coarse) {
+  .rail button {
+    min-height: 44px;
+  }
+}
+</style>

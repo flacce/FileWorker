@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import {
+  computed,
   defineAsyncComponent,
   defineComponent,
   h,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   ref,
@@ -52,11 +54,13 @@ const store = useWorkspaceStore()
 const prefs = usePrefsStore()
 
 const explorerRef = ref<InstanceType<typeof ExplorerBento> | null>(null)
+const sidebarRef = ref<InstanceType<typeof SidebarRailBento> | null>(null)
 const mobilePane = ref<MobileTab>('explorer')
 const isDesktopViewport = ref(
   typeof window === 'undefined' || window.matchMedia('(min-width: 1024px)').matches
 )
-const inspectorLoaded = ref(isDesktopViewport.value)
+const inspecting = computed(() => Boolean(store.activeObject || store.creatingClip))
+const inspectorLoaded = ref(false)
 const globalDragDepth = ref(0)
 let viewportMediaQuery: MediaQueryList | null = null
 
@@ -97,6 +101,21 @@ watch(
   { immediate: true }
 )
 
+function triggerWorkspaceUpload() {
+  sidebarRef.value?.triggerFileDialog()
+}
+
+async function focusWorkspaceSearch() {
+  mobilePane.value = 'explorer'
+  await nextTick()
+  explorerRef.value?.focusSearch()
+}
+
+function startClip() {
+  store.openClipCreator()
+  mobilePane.value = 'inspector'
+}
+
 function isEditableElement(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false
   const tag = el.tagName
@@ -108,15 +127,13 @@ function isEditableElement(el: EventTarget | null): boolean {
 function handleGlobalKeydown(ev: KeyboardEvent) {
   if (ev.key === '/' && !isEditableElement(ev.target) && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
     ev.preventDefault()
-    mobilePane.value = 'explorer'
-    explorerRef.value?.focusSearch()
+    void focusWorkspaceSearch()
     return
   }
 
   if (ev.altKey && (ev.key === 'n' || ev.key === 'N')) {
     ev.preventDefault()
-    store.openClipCreator()
-    mobilePane.value = 'inspector'
+    startClip()
     return
   }
 
@@ -126,6 +143,7 @@ function handleGlobalKeydown(ev: KeyboardEvent) {
     } else if (store.activeKey || store.creatingClip) {
       store.activeKey = null
       store.creatingClip = false
+      mobilePane.value = 'explorer'
     }
   }
 }
@@ -200,20 +218,82 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="relative w-full h-full p-2.5 flex flex-col gap-2.5 bg-bento-canvas overflow-hidden"
+    class="workspace-shell relative w-full h-full flex flex-col overflow-hidden"
     @dragenter.prevent="onWindowDragEnter"
     @dragover.prevent
     @dragleave.prevent="onWindowDragLeave"
     @drop.prevent="onWindowDrop"
   >
-    <!-- 桌面三栏便当盒网格 / 移动自适应单栏 -->
+    <header
+      class="workspace-header relative shrink-0 flex items-center justify-between gap-2"
+      :class="{ 'with-motion': prefs.ambientMotion }"
+    >
+      <div class="flex items-center gap-2 min-w-0">
+        <svg class="brand-mark shrink-0" viewBox="0 0 48 48" aria-hidden="true">
+          <path
+            d="M9 19 12 7l10 8h4l10-8 3 12v15a4 4 0 0 1-4 4H13a4 4 0 0 1-4-4z"
+            fill="currentColor"
+            opacity=".18"
+          />
+          <path
+            d="M9 19 12 7l10 8h4l10-8 3 12v15a4 4 0 0 1-4 4H13a4 4 0 0 1-4-4z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M17 25h5l2 2h7v7H17z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linejoin="round"
+          />
+          <circle cx="18" cy="20" r="1" fill="currentColor" />
+          <circle cx="30" cy="20" r="1" fill="currentColor" />
+        </svg>
+        <h1 class="m-0 text-base font-semibold text-ink-primary whitespace-nowrap">喵喵文件匣</h1>
+      </div>
+      <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <button
+          type="button"
+          class="desk-search btn-icon lg:hidden"
+          aria-label="搜索文件"
+          title="搜索文件（/）"
+          @click="focusWorkspaceSearch"
+        >
+          <span class="i-mdi-magnify text-base" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class="desk-action btn-surface"
+          aria-label="新建剪贴"
+          title="新建剪贴"
+          @click="startClip"
+        >
+          <span class="i-mdi-text-box-plus-outline text-base" aria-hidden="true" /><span
+            class="hidden sm:inline"
+            >新建剪贴</span
+          >
+        </button>
+        <button
+          type="button"
+          class="desk-action btn-accent"
+          aria-label="上传文件"
+          title="上传文件"
+          @click="triggerWorkspaceUpload"
+        >
+          <span class="i-mdi-tray-arrow-up text-base" aria-hidden="true" /><span
+            class="hidden min-[360px]:inline"
+            >上传文件</span
+          >
+        </button>
+      </div>
+    </header>
+    <!-- 桌面三栏工作区 / 移动自适应单栏 -->
     <main
-      class="flex-1 min-h-0 grid gap-2.5 transition-all duration-200"
-      :class="
-        prefs.expandedInspector
-          ? 'grid-cols-1 lg:grid-cols-[236px_minmax(280px,0.78fr)_minmax(460px,1.22fr)]'
-          : 'grid-cols-1 lg:grid-cols-[236px_minmax(0,1fr)_410px]'
-      "
+      class="workspace-columns flex-1 min-h-0 grid"
+      :class="{ inspecting, wide: prefs.expandedInspector }"
     >
       <!-- 左翼导航与容量投递便当列 -->
       <div
@@ -222,7 +302,7 @@ onBeforeUnmount(() => {
         class="h-full min-h-0 lg:block"
         :class="mobilePane === 'nav' ? 'block' : 'hidden'"
       >
-        <SidebarRailBento @pick-complete="mobilePane = 'explorer'" />
+        <SidebarRailBento ref="sidebarRef" @pick-complete="mobilePane = 'explorer'" />
       </div>
 
       <!-- 中枢资源主列表便当盒 -->
@@ -239,11 +319,11 @@ onBeforeUnmount(() => {
       <div
         role="region"
         :aria-label="store.creatingClip ? '新建片段' : '检视编辑'"
-        class="h-full min-h-0 lg:block"
+        class="inspector-pane h-full min-h-0 min-w-0"
         :class="mobilePane === 'inspector' ? 'block' : 'hidden'"
       >
         <InspectorBento
-          v-if="isDesktopViewport || inspectorLoaded"
+          v-if="(isDesktopViewport && inspecting) || inspectorLoaded"
           @close-panel="mobilePane = 'explorer'"
         />
       </div>
@@ -253,7 +333,7 @@ onBeforeUnmount(() => {
     <nav
       role="group"
       aria-label="移动端工作区面板"
-      class="lg:hidden bento-box h-11 shrink-0 grid grid-cols-3 p-1 gap-1"
+      class="mobile-nav lg:hidden shrink-0 grid grid-cols-3 p-1 gap-1"
     >
       <button
         type="button"
@@ -267,7 +347,7 @@ onBeforeUnmount(() => {
         @click="mobilePane = 'nav'"
       >
         <span class="i-mdi-tune-vertical text-sm" />
-        <span>分类与投递</span>
+        <span>分类</span>
       </button>
 
       <button
@@ -282,7 +362,7 @@ onBeforeUnmount(() => {
         @click="mobilePane = 'explorer'"
       >
         <span class="i-mdi-view-list-outline text-sm" />
-        <span>资源列表</span>
+        <span>文件</span>
       </button>
 
       <button
@@ -297,7 +377,7 @@ onBeforeUnmount(() => {
         @click="mobilePane = 'inspector'"
       >
         <span class="i-mdi-dock-right text-sm" />
-        <span>{{ store.creatingClip ? '新建片段' : '检视编辑' }}</span>
+        <span>{{ store.creatingClip ? '新建剪贴' : '预览' }}</span>
       </button>
     </nav>
 
@@ -314,10 +394,87 @@ onBeforeUnmount(() => {
       >
         <span class="i-mdi-tray-arrow-up text-2xl text-accent" />
       </div>
-      <p class="text-sm font-semibold text-ink-primary m-0">松开鼠标立即上传文件</p>
+      <p class="text-sm font-semibold text-ink-primary m-0">松手就上传</p>
       <p class="text-xs text-ink-secondary mt-1 m-0">
-        当前默认访问权限：{{ prefs.defaultVisibility === 'public' ? '公开直链' : '私密受控' }}
+        {{ prefs.defaultVisibility === 'public' ? '拿到链接的人可访问' : '仅登录后可访问' }}
       </p>
     </div>
   </div>
 </template>
+
+<style scoped>
+.workspace-shell {
+  background: var(--bento-canvas);
+}
+.workspace-header {
+  min-height: 64px;
+  padding: 8px 20px;
+  background: var(--bento-cell);
+  border-bottom: 1px solid var(--bento-line);
+}
+.brand-mark {
+  width: 36px;
+  height: 36px;
+  color: var(--accent);
+}
+.desk-action {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+.workspace-columns {
+  padding: 10px;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+.mobile-nav {
+  min-height: 54px;
+  padding-bottom: max(4px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--bento-line);
+  background: var(--bento-cell);
+}
+@media (min-width: 1024px) {
+  .workspace-columns {
+    --rail: clamp(196px, 16vw, 240px);
+    grid-template-columns: var(--rail) minmax(0, 1fr);
+  }
+  .inspector-pane {
+    display: none;
+  }
+  .inspecting {
+    grid-template-columns: var(--rail) minmax(0, 1fr) clamp(328px, 29vw, 480px);
+  }
+  .inspecting.wide {
+    grid-template-columns: var(--rail) minmax(0, 0.85fr) minmax(360px, 1.15fr);
+  }
+  .inspecting .inspector-pane {
+    display: block;
+  }
+}
+@media (max-width: 639px) {
+  .workspace-header {
+    min-height: 58px;
+    padding: 6px 10px;
+  }
+  .desk-search,
+  .desk-action {
+    height: 44px;
+    min-width: 44px;
+    padding-inline: 10px;
+  }
+  .workspace-columns {
+    padding: 6px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .with-motion .brand-mark {
+    animation: breathe 6s ease-in-out infinite alternate;
+  }
+  @keyframes breathe {
+    to {
+      opacity: 0.68;
+    }
+  }
+}
+</style>

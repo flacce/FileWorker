@@ -31,6 +31,7 @@ export const usePrefsStore = defineStore(
     const sortField = ref<SortField>('time')
     const sortDirection = ref<SortDirection>('desc')
     const expandedInspector = ref(false)
+    const ambientMotion = ref(false)
 
     function toggleVisibilityDefault() {
       defaultVisibility.value = defaultVisibility.value === 'public' ? 'private' : 'public'
@@ -42,6 +43,7 @@ export const usePrefsStore = defineStore(
       sortField,
       sortDirection,
       expandedInspector,
+      ambientMotion,
       toggleVisibilityDefault
     }
   },

@@ -16,6 +16,8 @@ import {
 
 const TEXT_CACHE_TTL_MS = 30_000
 const TEXT_CACHE_MAX_ENTRIES = 8
+const EXPLICIT_LOGOUT_KEY = 'fileworker:explicit-logout'
+let logoutPromise: Promise<boolean> | null = null
 const textCache = new Map<string, { value: string; expiresAt: number }>()
 let textCacheVersion = 0
 
@@ -48,7 +50,9 @@ export async function probeSession(): Promise<boolean> {
   }
 }
 
-export async function submitPasscode(password: string): Promise<{ ok: boolean; error?: string }> {
+export async function submitPasscode(
+  password: string
+): Promise<{ ok: boolean; error?: string; status?: number }> {
   try {
     const res = await httpJson<{ ok: boolean }>(
       '/api/auth',
@@ -62,12 +66,46 @@ export async function submitPasscode(password: string): Promise<{ ok: boolean; e
     return { ok: Boolean(res.ok) }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : '验证失败'
-    return { ok: false, error: message }
+    return {
+      ok: false,
+      error: message,
+      status: err instanceof HttpStatusError ? err.code : undefined
+    }
   }
 }
 
-export function endSession() {
+export function hasExplicitLogout(): boolean {
+  try {
+    return localStorage.getItem(EXPLICIT_LOGOUT_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function clearExplicitLogout() {
+  try {
+    localStorage.removeItem(EXPLICIT_LOGOUT_KEY)
+  } catch {
+    // 本地存储不可用时仍允许继续登录
+  }
+}
+
+export function endSession(): Promise<boolean> {
   clearClientSessionCookies()
+  try {
+    localStorage.setItem(EXPLICIT_LOGOUT_KEY, '1')
+  } catch {
+    // 路由仍会离开工作区，即使本地存储不可用
+  }
+
+  if (logoutPromise) return logoutPromise
+  logoutPromise = httpJson<{ ok: boolean }>('/api/logout', { method: 'POST' }, true)
+    .then((response) => Boolean(response.ok))
+    .catch(() => false)
+    .finally(() => {
+      logoutPromise = null
+    })
+  return logoutPromise
 }
 
 export async function queryObjects(params?: {

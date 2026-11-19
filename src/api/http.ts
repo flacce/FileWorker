@@ -55,7 +55,7 @@ async function fetchWithSession(
 
   if (response.status === 401) {
     if (!silentAuth) {
-      notify('会话已失效，请重新验证门禁口令', 'warn')
+      notify('登录已过期，请重新输入口令', 'warn')
       redirectToGate()
     }
     throw new HttpStatusError('未授权访问', 401)

@@ -253,13 +253,23 @@ function resetRootView() {
 </script>
 
 <template>
-  <section class="bento-box h-full min-h-0">
+  <section class="explorer-panel bento-box h-full min-h-0 min-w-0">
     <!-- 顶部工具列 -->
     <header
       class="px-3 py-2.5 border-b border-white/[0.06] flex flex-wrap items-center gap-2 shrink-0"
     >
       <!-- 路径导航与当前视图指示 -->
-      <div class="flex items-center gap-1 min-w-0 mr-auto overflow-x-auto">
+      <h2 class="m-0 w-full truncate text-lg font-semibold text-ink-primary">
+        {{
+          store.activeCategory !== 'all'
+            ? categoryLabel(store.activeCategory)
+            : breadcrumbs[breadcrumbs.length - 1]?.name || '根目录'
+        }}
+      </h2>
+      <div
+        v-if="breadcrumbs.length || store.activeCategory !== 'all'"
+        class="flex items-center gap-1 min-w-0 w-full overflow-x-auto"
+      >
         <button
           type="button"
           class="btn-quiet h-7 px-2 shrink-0"
@@ -294,7 +304,7 @@ function resetRootView() {
       </div>
 
       <!-- 即时检索框 -->
-      <div class="relative w-44 sm:w-56">
+      <div class="relative min-w-0 flex-[1_1_14rem]">
         <span
           class="i-mdi-magnify absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted text-sm pointer-events-none"
         />
@@ -302,14 +312,15 @@ function resetRootView() {
           ref="searchInputEl"
           v-model="store.searchQuery"
           type="text"
-          placeholder="检索名称或路径（/）"
-          class="ctrl-input pl-8 pr-7 h-7.5"
+          placeholder="搜索文件名或路径"
+          aria-label="搜索文件名或路径"
+          class="ctrl-input w-full pl-8 pr-7 h-9 text-sm"
         />
         <button
           v-if="store.searchQuery"
           type="button"
           class="btn-icon w-5 h-5 absolute right-1.5 top-1/2 -translate-y-1/2"
-          title="清空检索词"
+          title="清空搜索"
           @click="store.searchQuery = ''"
         >
           <span class="i-mdi-close text-xs" />
@@ -317,9 +328,9 @@ function resetRootView() {
       </div>
 
       <!-- 排序与布局控制组 -->
-      <div class="flex items-center gap-1">
+      <div class="flex flex-wrap items-center gap-2">
         <div
-          class="hidden sm:flex items-center bg-bento-raised border border-white/[0.06] rounded-ctrl p-0.5"
+          class="flex items-center bg-bento-raised border border-white/[0.06] rounded-ctrl p-0.5"
         >
           <button
             v-for="col in [
@@ -389,30 +400,20 @@ function resetRootView() {
             :class="store.loading ? 'animate-spin text-accent' : ''"
           />
         </button>
-
-        <button
-          type="button"
-          class="btn-surface h-7.5 px-2.5"
-          title="新建文本或代码片段"
-          @click="handleNewClip"
-        >
-          <span class="i-mdi-plus text-accent text-sm" />
-          <span class="hidden sm:inline">新建片段</span>
-        </button>
       </div>
     </header>
 
     <!-- 多选批量动作条 -->
     <div
       v-if="store.selectedKeys.length > 0"
-      class="px-3 py-1.5 bg-accent-dim border-b border-accent-line flex items-center justify-between gap-2 shrink-0"
+      class="px-3 py-1.5 bg-accent-dim border-b border-accent-line flex flex-wrap items-center justify-between gap-2 shrink-0"
     >
       <div class="flex items-center gap-2 text-xs text-ink-primary">
         <span class="w-1.5 h-1.5 rounded-full bg-accent" />
         <span>已勾选 {{ store.selectedKeys.length }} 项对象</span>
       </div>
 
-      <div class="flex items-center gap-1.5">
+      <div class="flex flex-wrap items-center gap-1.5">
         <button
           type="button"
           class="btn-quiet h-6.5 text-[11px]"
@@ -437,49 +438,48 @@ function resetRootView() {
       </div>
     </div>
 
-    <!-- 列表表头（仅列表模式显示） -->
-    <div
-      v-if="
-        prefs.viewLayout === 'list' &&
-        (store.visibleObjects.length > 0 || store.virtualFolders.length > 0)
-      "
-      class="px-3 h-7 border-b border-white/[0.04] bg-bento-raised/40 grid grid-cols-[24px_1fr_68px_84px_92px_96px] items-center gap-2 text-[11px] text-ink-muted shrink-0"
-    >
-      <button
-        type="button"
-        class="w-4 h-4 rounded-[3px] border flex items-center justify-center cursor-pointer bg-transparent p-0"
-        :class="
-          allVisibleSelected
-            ? 'border-accent bg-accent text-[#061210]'
-            : 'border-white/[0.16] hover:border-white/[0.3]'
-        "
-        title="全选或取消全选"
-        @click="store.toggleSelectAllVisible()"
-      >
-        <span v-if="allVisibleSelected" class="i-mdi-check text-[11px]" />
-      </button>
-      <span>对象键名</span>
-      <span class="hidden sm:inline">访问权限</span>
-      <span class="text-right hidden md:inline">体积</span>
-      <span class="text-right hidden sm:inline">更新时间</span>
-      <span class="text-right">快捷操作</span>
-    </div>
-
-    <!-- 主内容滚动区 -->
     <div
       ref="scrollHostEl"
-      class="flex-1 min-h-0 overflow-y-auto outline-none"
+      class="flex-1 min-h-0 overflow-y-auto outline-none scroll-pt-7"
       tabindex="0"
       aria-label="资源列表（方向键切换，空格勾选，Enter 打开检视）"
       @keydown="handleKeyNav"
     >
+      <!-- 表头和数据行共享滚动条内侧的可用宽度 -->
+      <div
+        v-if="
+          prefs.viewLayout === 'list' &&
+          (store.visibleObjects.length > 0 || store.virtualFolders.length > 0)
+        "
+        class="file-columns sticky top-0 z-10 h-7 border-b border-white/[0.04] bg-bento-raised text-[11px] text-ink-muted"
+      >
+        <button
+          type="button"
+          class="w-4 h-4 rounded-[3px] border flex items-center justify-center cursor-pointer bg-transparent p-0"
+          :class="
+            allVisibleSelected
+              ? 'border-accent bg-accent text-[#061210]'
+              : 'border-white/[0.16] hover:border-white/[0.3]'
+          "
+          title="全选或取消全选"
+          @click="store.toggleSelectAllVisible()"
+        >
+          <span v-if="allVisibleSelected" class="i-mdi-check text-[11px]" />
+        </button>
+        <span class="pl-6">文件名</span>
+        <span class="file-access">访问权限</span>
+        <span class="file-size text-right">体积</span>
+        <span class="file-time text-right">更新时间</span>
+        <span class="text-right">快捷操作</span>
+      </div>
+
       <!-- 初次加载态 -->
       <div
         v-if="store.loading && store.objects.length === 0"
         class="h-full flex flex-col items-center justify-center gap-2 text-xs text-ink-muted"
       >
         <span class="i-mdi-loading animate-spin text-lg text-accent" />
-        <span>正在同步云端对象索引…</span>
+        <span>正在加载文件…</span>
       </div>
 
       <!-- 空状态 -->
@@ -487,25 +487,47 @@ function resetRootView() {
         v-else-if="store.virtualFolders.length === 0 && store.visibleObjects.length === 0"
         class="h-full flex flex-col items-center justify-center p-6 text-center"
       >
-        <div
-          class="w-11 h-11 rounded-bento bg-bento-raised border border-white/[0.07] flex items-center justify-center mb-3"
+        <svg
+          viewBox="0 0 64 48"
+          class="w-15 h-11 mb-3 text-accent/75"
+          fill="none"
+          aria-hidden="true"
         >
-          <span class="i-mdi-cube-off-outline text-xl text-ink-muted" />
-        </div>
+          <path
+            d="M10 32V15a4 4 0 0 1 4-4h12l5 5h19a4 4 0 0 1 4 4v13a4 4 0 0 1-4 4H14a4 4 0 0 1-4-4z"
+            fill="currentColor"
+            fill-opacity=".08"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M24 29v-7l5 3h6l5-3v7a8 6 0 0 1-16 0zM29 29h.1m5.8 0h.1M50 5v6m-3-3h6"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
         <p class="text-xs font-medium text-ink-primary m-0">
-          {{ store.searchQuery ? '未匹配到符合检索条件的对象' : '当前视图暂无存储资源' }}
+          {{ store.searchQuery.trim() ? '没找到匹配的文件' : '这里还没有文件' }}
         </p>
-        <p class="text-[11px] text-ink-muted mt-1 mb-4 max-w-[240px]">
-          可将本地文件直接拖入窗口任意位置上传，或立即创建一段在线云剪贴板。
-        </p>
-        <div class="flex items-center gap-2">
+        <button
+          v-if="store.searchQuery.trim()"
+          type="button"
+          class="btn-surface mt-3"
+          @click="store.searchQuery = ''"
+        >
+          清空搜索
+        </button>
+        <div v-else class="flex items-center gap-2 mt-3">
           <button type="button" class="btn-accent h-7.5" @click="filePickerEl?.click()">
             <span class="i-mdi-tray-arrow-up text-sm" />
-            <span>选取文件上传</span>
+            <span>选择文件</span>
           </button>
           <button type="button" class="btn-surface h-7.5" @click="handleNewClip">
             <span class="i-mdi-text-box-plus-outline text-sm" />
-            <span>新建云剪贴板</span>
+            <span>新建剪贴</span>
           </button>
         </div>
         <input ref="filePickerEl" type="file" multiple class="hidden" @change="onPickUpload" />
@@ -552,7 +574,7 @@ function resetRootView() {
           v-for="item in store.visibleObjects"
           :key="item.Key"
           :data-key="item.Key"
-          class="object-list-row group relative px-3 h-10 grid grid-cols-[24px_1fr_auto] sm:grid-cols-[24px_1fr_68px_92px_96px] md:grid-cols-[24px_1fr_68px_84px_92px_96px] items-center gap-2 cursor-pointer transition-colors"
+          class="file-columns object-list-row group relative h-10 cursor-pointer transition-colors"
           tabindex="0"
           role="group"
           :aria-label="`资源对象：${displayTitle(item)}，按 Enter 或空格打开检视`"
@@ -596,7 +618,7 @@ function resetRootView() {
               class="text-base shrink-0"
             />
             <span
-              class="text-xs truncate"
+              class="list-name text-[14px] truncate"
               :class="
                 store.activeKey === item.Key
                   ? 'text-ink-primary font-medium'
@@ -609,23 +631,23 @@ function resetRootView() {
           </div>
 
           <!-- 权限微章 -->
-          <div class="hidden sm:flex items-center">
+          <div class="file-access">
             <span v-if="resolveVisibility(item) === 'public'" class="tag-accent"> 公开 </span>
             <span v-else class="tag-neutral">私密</span>
           </div>
 
           <!-- 体积 -->
-          <span class="hidden md:block text-right text-[11px] font-mono text-ink-secondary">
+          <span class="file-size text-right text-[11px] font-mono text-ink-secondary">
             {{ formatFileSize(item.Size) }}
           </span>
 
           <!-- 更新时间 -->
-          <span class="hidden sm:block text-right text-[11px] text-ink-muted truncate">
+          <span class="file-time text-right text-[11px] text-ink-muted truncate">
             {{ formatRelativeTime(item.LastModified) }}
           </span>
 
           <!-- 快捷操作 -->
-          <div class="flex items-center justify-end gap-0.5" @click.stop>
+          <div class="file-actions flex items-center justify-end gap-0.5" @click.stop>
             <button
               type="button"
               class="btn-icon w-6.5 h-6.5"
@@ -665,10 +687,7 @@ function resetRootView() {
       <!-- 网格画廊模式 -->
       <div v-else class="p-3 space-y-3">
         <!-- 子目录网格 -->
-        <div
-          v-if="store.virtualFolders.length > 0"
-          class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2"
-        >
+        <div v-if="store.virtualFolders.length > 0" class="gallery-grid gap-2.5">
           <button
             v-for="folder in store.virtualFolders"
             :key="folder"
@@ -684,7 +703,7 @@ function resetRootView() {
         </div>
 
         <!-- 对象卡片网格 -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
+        <div class="gallery-grid gap-2.5">
           <div
             v-for="item in store.visibleObjects"
             :key="item.Key"
@@ -727,7 +746,7 @@ function resetRootView() {
                 :class="
                   store.isSelected(item.Key)
                     ? 'border-accent bg-accent text-[#061210] opacity-100'
-                    : 'border-white/25 bg-bento-canvas/80 text-transparent opacity-0 group-hover:opacity-100'
+                    : 'border-white/25 bg-bento-canvas/80 text-transparent'
                 "
                 @click.stop="handleToggle(item, $event)"
               >
@@ -737,7 +756,7 @@ function resetRootView() {
               <!-- 右上复制快捷钮 -->
               <button
                 type="button"
-                class="absolute top-1.5 right-1.5 w-6 h-6 rounded-tag bg-bento-canvas/85 border border-white/[0.1] text-ink-secondary hover:text-accent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                class="absolute top-1.5 right-1.5 w-8 h-8 rounded-tag bg-bento-canvas/85 border border-white/[0.1] text-ink-secondary hover:text-accent flex items-center justify-center cursor-pointer"
                 title="复制访问链接"
                 @click.stop="copySmartLink(item)"
               >
@@ -748,7 +767,7 @@ function resetRootView() {
             <!-- 底部信息 -->
             <div class="p-2.5 space-y-1">
               <div
-                class="text-xs text-ink-primary truncate font-medium"
+                class="card-name text-[14px] text-ink-primary font-medium"
                 :title="decodeKey(item.Key)"
               >
                 {{ displayTitle(item) }}
@@ -781,3 +800,82 @@ function resetRootView() {
     </div>
   </section>
 </template>
+
+<style scoped>
+.explorer-panel {
+  container: explorer / inline-size;
+}
+
+.file-columns {
+  display: grid;
+  align-items: center;
+  grid-template-columns: 24px minmax(0, 1fr) 96px;
+  column-gap: 0.5rem;
+  padding-inline: 0.75rem;
+}
+
+.file-access,
+.file-size,
+.file-time {
+  display: none;
+}
+
+.card-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+@container explorer (width < 520px) {
+  .file-columns {
+    grid-template-columns: 1rem minmax(0, 1fr) 6.75rem;
+    column-gap: 0.375rem;
+    padding-inline: 0.5rem;
+  }
+
+  .object-list-row {
+    height: 3rem;
+  }
+
+  .list-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.25rem;
+  }
+
+  .file-actions button {
+    min-width: 2rem;
+    height: 2rem;
+    white-space: nowrap;
+  }
+}
+
+@container explorer (min-width: 520px) {
+  .file-columns {
+    grid-template-columns: 24px minmax(0, 1fr) 64px 88px 96px;
+  }
+  .file-access,
+  .file-time {
+    display: block;
+  }
+}
+
+@container explorer (min-width: 680px) {
+  .file-columns {
+    grid-template-columns: 24px minmax(0, 1fr) 64px 72px 88px 96px;
+  }
+  .file-size {
+    display: block;
+  }
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+}
+</style>
